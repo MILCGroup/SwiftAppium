@@ -5,7 +5,6 @@
 //  See LICENSE for information
 //
 
-
 public struct URLResponse: Codable {
     public let value: String
 }

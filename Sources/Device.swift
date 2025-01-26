@@ -10,7 +10,8 @@ import Testing
 public enum Device: Equatable, Sendable, CustomTestStringConvertible {
     case iOS(
         deviceName: String, platformVersion: String, udid: String, app: String,
-        automationName: String, wdaLocalPort: Int, usePreinstalledWDA: Bool? = false)
+        automationName: String, wdaLocalPort: Int?,
+        usePreinstalledWDA: Bool? = false)
     case Android(
         deviceName: String, platformVersion: String, app: String,
         automationName: String)

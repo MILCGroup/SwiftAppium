@@ -6,4 +6,3 @@
 //
 
 public protocol WebCase: Normalizable {}
-
