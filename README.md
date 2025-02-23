@@ -4,7 +4,7 @@
 ![Platforms](https://img.shields.io/badge/Platforms-macOS_%7C_Linux_%7C_Windows-blue)
 ![License](https://img.shields.io/badge/License-Apache_2.0-green)
 
-SwiftAppium is a modern Swift client for the Appium automation server. It provides a type-safe, async/await API for mobile app testing.
+SwiftAppium is a modern Swift client for the Appium automation server. It provides a type-safe, async/await API for mobile app testing. For writing Appium Tests that conform to [WebDriver Protocol](https://w3c.github.io/webdriver/)
 
 - Session Management
   - Create/Delete sessions
