@@ -17,10 +17,10 @@ public struct Client {
         timeout: TimeInterval
     ) async throws -> String {
         let startTime = Date()
-        var searchCount = 0
+
         while true {
             do {
-                let elementFound = try await findElement(
+                let elementFound = await findElement(
                     client: client, sessionId: sessionId, strategy: strategy,
                     selector: selector
                 )
@@ -29,11 +29,6 @@ public struct Client {
                     appiumLogger.info("Element \(element) found!")
                     return element
                 }
-            } catch {
-                appiumLogger.info(
-                    "searched \(searchCount) time\(searchCount == 1 ? "" : "s")"
-                )
-                searchCount += 1
             }
 
             if Date().timeIntervalSince(startTime) > timeout {
@@ -50,7 +45,7 @@ public struct Client {
         sessionId: String,
         strategy: Strategy,
         selector: String
-    ) async throws -> String? {
+    ) async -> String? {
         appiumLogger.info(
             "Trying to find element with strategy: \(strategy.rawValue) and selector: \(selector) in session: \(sessionId)"
         )
@@ -62,32 +57,48 @@ public struct Client {
                 "value": selector,
             ])
         } catch {
-            throw AppiumError.encodingError(
-                "Failed to encode request body for findElement")
+            appiumLogger.error(
+                "Failed to encode request body for findElement: \(error)")
+            return nil
         }
 
-        var request = try HTTPClient.Request(
-            url: API.element(sessionId).path, method: .POST
-        )
+        var request: HTTPClient.Request
+        do {
+            request = try HTTPClient.Request(
+                url: API.element(sessionId).path, method: .POST
+            )
+        } catch {
+            appiumLogger.error("Failed to create request: \(error)")
+            return nil
+        }
         request.headers.add(name: "Content-Type", value: "application/json")
         request.body = .data(requestBody)
 
         appiumLogger.info("Sending request to URL: \(request.url)")
-        let response = try await client.execute(request: request).get()
+        let response: HTTPClient.Response
+        do {
+            response = try await client.execute(request: request).get()
+        } catch {
+            appiumLogger.error("Failed to execute request: \(error)")
+            return nil
+        }
         appiumLogger.info("Received response with status: \(response.status)")
 
         guard response.status == .ok else {
-            throw AppiumError.invalidResponse(
+            appiumLogger.error(
                 "Failed to find element: HTTP \(response.status)")
+            return nil
         }
 
         guard var byteBuffer = response.body else {
-            throw AppiumError.invalidResponse("No response body")
+            appiumLogger.error("No response body")
+            return nil
         }
 
         guard let body = byteBuffer.readString(length: byteBuffer.readableBytes)
         else {
-            throw AppiumError.invalidResponse("Cannot read response body")
+            appiumLogger.error("Cannot read response body")
+            return nil
         }
 
         appiumLogger.info("Element response body: \(body)")
@@ -97,13 +108,12 @@ public struct Client {
                 ElementResponse.self, from: Data(body.utf8))
             return elementResponse.value.elementId
         } catch {
-            throw AppiumError.invalidResponse(
+            appiumLogger.error(
                 "Failed to decode element response: \(error.localizedDescription)"
             )
+            return nil
         }
-
     }
-
     public static func containsInHierarchy(
         _ client: HTTPClient,
         sessionId: String,
