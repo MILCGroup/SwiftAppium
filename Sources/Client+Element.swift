@@ -24,7 +24,7 @@ public struct Client {
                     client: client, sessionId: sessionId, strategy: strategy,
                     selector: selector
                 )
-                
+
                 if let element = elementFound {
                     appiumLogger.info("Element \(element) found!")
                     return element
@@ -35,7 +35,7 @@ public struct Client {
                 )
                 searchCount += 1
             }
-            
+
             if Date().timeIntervalSince(startTime) > timeout {
                 throw AppiumError.timeoutError(
                     "Timeout reached while waiting for element with selector: \(selector)"
@@ -44,7 +44,7 @@ public struct Client {
             try await Wait.sleep(for: Wait.searchAgainDelay)
         }
     }
-    
+
     public static func findElement(
         client: HTTPClient,
         sessionId: String,
@@ -54,7 +54,7 @@ public struct Client {
         appiumLogger.info(
             "Trying to find element with strategy: \(strategy.rawValue) and selector: \(selector) in session: \(sessionId)"
         )
-        
+
         let requestBody: Data
         do {
             requestBody = try JSONEncoder().encode([
@@ -62,50 +62,48 @@ public struct Client {
                 "value": selector,
             ])
         } catch {
-            throw AppiumError.encodingError("Failed to encode request body for findElement")
+            throw AppiumError.encodingError(
+                "Failed to encode request body for findElement")
         }
-        
+
         var request = try HTTPClient.Request(
             url: API.element(sessionId).path, method: .POST
         )
         request.headers.add(name: "Content-Type", value: "application/json")
         request.body = .data(requestBody)
-        
+
+        appiumLogger.info("Sending request to URL: \(request.url)")
+        let response = try await client.execute(request: request).get()
+        appiumLogger.info("Received response with status: \(response.status)")
+
+        guard response.status == .ok else {
+            throw AppiumError.invalidResponse(
+                "Failed to find element: HTTP \(response.status)")
+        }
+
+        guard var byteBuffer = response.body else {
+            throw AppiumError.invalidResponse("No response body")
+        }
+
+        guard let body = byteBuffer.readString(length: byteBuffer.readableBytes)
+        else {
+            throw AppiumError.invalidResponse("Cannot read response body")
+        }
+
+        appiumLogger.info("Element response body: \(body)")
+
         do {
-            appiumLogger.info("Sending request to URL: \(request.url)")
-            let response = try await client.execute(request: request).get()
-            appiumLogger.info("Received response with status: \(response.status)")
-            
-            guard response.status == .ok else {
-                throw AppiumError.invalidResponse("Failed to find element: HTTP \(response.status)")
-            }
-            
-            guard var byteBuffer = response.body else {
-                throw AppiumError.invalidResponse("No response body")
-            }
-            
-            guard let body = byteBuffer.readString(length: byteBuffer.readableBytes) else {
-                throw AppiumError.invalidResponse("Cannot read response body")
-            }
-            
-            appiumLogger.info("Element response body: \(body)")
-            
-            do {
-                let elementResponse = try JSONDecoder().decode(
-                    ElementResponse.self, from: Data(body.utf8))
-                return elementResponse.value.elementId
-            } catch {
-                throw AppiumError.invalidResponse("Failed to decode element response: \(error.localizedDescription)")
-            }
-        } catch let error as AppiumError {
-            throw error
+            let elementResponse = try JSONDecoder().decode(
+                ElementResponse.self, from: Data(body.utf8))
+            return elementResponse.value.elementId
         } catch {
-            throw AppiumError.elementNotFound(
-                "Failed to find element with strategy: \(strategy.rawValue) and selector: \(selector) - \(error.localizedDescription)"
+            throw AppiumError.invalidResponse(
+                "Failed to decode element response: \(error.localizedDescription)"
             )
         }
+
     }
-    
+
     public static func containsInHierarchy(
         _ client: HTTPClient,
         sessionId: String,
@@ -115,26 +113,31 @@ public struct Client {
             let request = try HTTPClient.Request(
                 url: API.source(sessionId).path, method: .GET)
             let response = try await client.execute(request: request).get()
-            
+
             guard response.status == .ok else {
-                throw AppiumError.invalidResponse("Failed to get hierarchy: HTTP \(response.status)")
+                throw AppiumError.invalidResponse(
+                    "Failed to get hierarchy: HTTP \(response.status)")
             }
-            
+
             guard let body = response.body,
-                  let hierarchy = body.getString(at: 0, length: body.readableBytes)
+                let hierarchy = body.getString(
+                    at: 0, length: body.readableBytes)
             else {
-                throw AppiumError.invalidResponse("Failed to get element hierarchy content")
+                throw AppiumError.invalidResponse(
+                    "Failed to get element hierarchy content")
             }
-            
+
             try await Wait.sleep(for: 1)
             return hierarchy.contains(text)
-            
+
         } catch let error as AppiumError {
             appiumLogger.error("Error while checking hierarchy: \(error)")
             throw error
         } catch {
-            appiumLogger.error("Unexpected error while checking hierarchy: \(error)")
-            throw AppiumError.invalidResponse("Failed to check hierarchy: \(error.localizedDescription)")
+            appiumLogger.error(
+                "Unexpected error while checking hierarchy: \(error)")
+            throw AppiumError.invalidResponse(
+                "Failed to check hierarchy: \(error.localizedDescription)")
         }
     }
 }
@@ -175,16 +178,19 @@ extension Client {
             url: API.click(elementId, sessionId).path,
             method: .POST)
         request.headers.add(name: "Content-Type", value: "application/json")
-        
+
         do {
             let response = try await client.execute(request: request).get()
             guard response.status == .ok else {
-                throw AppiumError.invalidResponse("Failed to click element: HTTP \(response.status)")
+                throw AppiumError.invalidResponse(
+                    "Failed to click element: HTTP \(response.status)")
             }
         } catch let error as AppiumError {
             throw error
         } catch {
-            throw AppiumError.elementNotFound("Failed to click element: \(elementId) - \(error.localizedDescription)")
+            throw AppiumError.elementNotFound(
+                "Failed to click element: \(elementId) - \(error.localizedDescription)"
+            )
         }
     }
 
@@ -197,29 +203,33 @@ extension Client {
         appiumLogger.info(
             "Sending keys to element: \(elementId) in session: \(sessionId) with text: \(text)"
         )
-        
+
         let requestBody: Data
         do {
             requestBody = try JSONEncoder().encode(["text": text])
         } catch {
-            throw AppiumError.encodingError("Failed to encode text for sendKeys")
+            throw AppiumError.encodingError(
+                "Failed to encode text for sendKeys")
         }
-        
+
         var request = try HTTPClient.Request(
             url: API.value(elementId, sessionId).path,
             method: .POST)
         request.headers.add(name: "Content-Type", value: "application/json")
         request.body = .data(requestBody)
-        
+
         do {
             let response = try await client.execute(request: request).get()
             guard response.status == .ok else {
-                throw AppiumError.invalidResponse("Failed to send keys: HTTP \(response.status)")
+                throw AppiumError.invalidResponse(
+                    "Failed to send keys: HTTP \(response.status)")
             }
         } catch let error as AppiumError {
             throw error
         } catch {
-            throw AppiumError.elementNotFound("Failed to send keys to element: \(elementId) - \(error.localizedDescription)")
+            throw AppiumError.elementNotFound(
+                "Failed to send keys to element: \(elementId) - \(error.localizedDescription)"
+            )
         }
     }
 }
