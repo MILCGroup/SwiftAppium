@@ -12,6 +12,10 @@ public enum Strategy: String {
     case id = "id"
     case iOSClassChain = "-ios class chain"
     case iOSPredicateString = "-ios predicate string"
-    case android = "-android uiautomator"
+    case androidDataMatcher = "-android dataMatcher"
+    case androidViewMatcher = "-android viewMatcher"
+    case androidUIAutomator = "-android uiautomator"
+    case androidViewTag = "-android viewtag"
+    case text = "text"
     case xpath = "xpath"
 }
