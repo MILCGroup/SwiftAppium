@@ -7,27 +7,16 @@
 
 import Testing
 
-public enum Device: Equatable, Sendable, CustomTestStringConvertible {
+public enum Device: Equatable, Sendable {
     case iOS(
         deviceName: String, platformVersion: String, udid: String, app: String,
         automationName: String, wdaLocalPort: Int?,
         usePreinstalledWDA: Bool? = false)
     case Android(
         deviceName: String, platformVersion: String, app: String,
-        automationName: String)
+        automationName: String, espressoBuildConfig: String?)
     case Browser(
         platformVersion: String, automationName: String, browserName: String)
-
-    public var testDescription: String {
-        switch self {
-        case .Android:
-            "Android \(platformVersion)"
-        case .iOS:
-            "iOS \(deviceName!)"
-        case .Browser:
-            "Browser \(browserName!)"
-        }
-    }
 
     public var platform: Platform {
         switch self {
@@ -54,7 +43,7 @@ public enum Device: Equatable, Sendable, CustomTestStringConvertible {
     public var platformVersion: String {
         switch self {
         case .iOS(_, let platformVersion, _, _, _, _, _),
-            .Android(_, let platformVersion, _, _),
+            .Android(_, let platformVersion, _, _, _),
             .Browser(let platformVersion, _, _):
             return platformVersion
         }
@@ -63,7 +52,7 @@ public enum Device: Equatable, Sendable, CustomTestStringConvertible {
     public var automationName: String {
         switch self {
         case .iOS(_, _, _, _, let automationName, _, _),
-            .Android(_, _, _, let automationName),
+            .Android(_, _, _, let automationName, _),
             .Browser(_, let automationName, _):
             return automationName
         }
@@ -81,7 +70,7 @@ public enum Device: Equatable, Sendable, CustomTestStringConvertible {
     public var deviceName: String? {
         switch self {
         case .iOS(let deviceName, _, _, _, _, _, _),
-            .Android(let deviceName, _, _, _):
+            .Android(let deviceName, _, _, _, _):
             return deviceName
         default:
             return nil
@@ -100,7 +89,7 @@ public enum Device: Equatable, Sendable, CustomTestStringConvertible {
     public var app: String? {
         switch self {
         case .iOS(_, _, _, let app, _, _, _),
-            .Android(_, _, let app, _):
+            .Android(_, _, let app, _, _):
             return app
         default:
             return nil
@@ -120,6 +109,15 @@ public enum Device: Equatable, Sendable, CustomTestStringConvertible {
         switch self {
         case .iOS(_, _, _, _, _, _, let usePreinstalledWDA):
             return usePreinstalledWDA
+        default:
+            return nil
+        }
+    }
+
+    public var espressoBuildConfig: String? {
+        switch self {
+        case .Android(_, _, _, _, let espressoBuildConfig):
+            return espressoBuildConfig
         default:
             return nil
         }
