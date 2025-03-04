@@ -242,4 +242,30 @@ extension Client {
             )
         }
     }
+    
+    public static func hideKeyboard(client: HTTPClient, sessionId: String) async throws {
+        appiumLogger.info("Attempting to hide keyboard in session: \(sessionId)")
+
+        var request: HTTPClient.Request
+        
+            request = try HTTPClient.Request(
+                url: API.hideKeyboard(sessionId).path, method: .POST
+            )
+        
+
+        request.headers.add(name: "Content-Type", value: "application/json")
+
+        do {
+            let response = try await client.execute(request: request).get()
+            if response.status == .ok {
+                appiumLogger.info("Keyboard hidden successfully.")
+            } else {
+                appiumLogger.error("Failed to hide keyboard. Status: \(response.status)")
+                throw AppiumError.invalidResponse("Failed to hide keyboard. Status: \(response.status)")
+            }
+        } catch {
+            appiumLogger.error("Error while hiding keyboard: \(error)")
+            throw AppiumError.elementNotFound("Error while hiding keyboard: \(error)")
+        }
+    }
 }
