@@ -10,8 +10,7 @@ import Foundation
 
 public struct Client {
     public static func waitForElement(
-        _ client: HTTPClient,
-        sessionId: String,
+        _ session: Session,
         strategy: Strategy,
         selector: String,
         timeout: TimeInterval
@@ -20,8 +19,9 @@ public struct Client {
 
         while true {
             do {
-                let elementFound = await findElement(
-                    client: client, sessionId: sessionId, strategy: strategy,
+                let elementFound = try await findElement(
+                    session,
+                    strategy: strategy,
                     selector: selector
                 )
 
@@ -41,13 +41,12 @@ public struct Client {
     }
 
     public static func findElement(
-        client: HTTPClient,
-        sessionId: String,
+        _ session: Session,
         strategy: Strategy,
         selector: String
-    ) async -> String? {
+    ) async throws -> String? {
         appiumLogger.info(
-            "Trying to find element with strategy: \(strategy.rawValue) and selector: \(selector) in session: \(sessionId)"
+            "Trying to find element with strategy: \(strategy.rawValue) and selector: \(selector) in session: \(session.id)"
         )
 
         let requestBody: Data
@@ -59,17 +58,20 @@ public struct Client {
         } catch {
             appiumLogger.error(
                 "Failed to encode request body for findElement: \(error)")
-            return nil
+            throw AppiumError.encodingError(
+                "Failed to encode findElement request: \(error.localizedDescription)"
+            )
         }
 
         var request: HTTPClient.Request
         do {
             request = try HTTPClient.Request(
-                url: API.element(sessionId).path, method: .POST
+                url: API.element(session.id).path, method: .POST
             )
         } catch {
             appiumLogger.error("Failed to create request: \(error)")
-            return nil
+            throw AppiumError.invalidResponse(
+                "Failed to create request: \(error.localizedDescription)")
         }
         request.headers.add(name: "Content-Type", value: "application/json")
         request.body = .data(requestBody)
@@ -77,7 +79,7 @@ public struct Client {
         appiumLogger.info("Sending request to URL: \(request.url)")
         let response: HTTPClient.Response
         do {
-            response = try await client.execute(request: request).get()
+            response = try await session.client.execute(request: request).get()
         } catch {
             appiumLogger.error("Failed to execute request: \(error)")
             return nil
@@ -115,14 +117,14 @@ public struct Client {
         }
     }
     public static func containsInHierarchy(
-        _ client: HTTPClient,
-        sessionId: String,
+        _ session: Session,
         contains text: String
     ) async throws -> Bool {
         do {
             let request = try HTTPClient.Request(
-                url: API.source(sessionId).path, method: .GET)
-            let response = try await client.execute(request: request).get()
+                url: API.source(session.id).path, method: .GET)
+            let response = try await session.client.execute(request: request)
+                .get()
 
             guard response.status == .ok else {
                 throw AppiumError.invalidResponse(
@@ -150,47 +152,131 @@ public struct Client {
                 "Failed to check hierarchy: \(error.localizedDescription)")
         }
     }
-}
 
-extension Client {
+    public static func executeScript(
+        _ session: Session,
+        script: String,
+        args: [Any]
+    ) async throws -> Any? {
+        appiumLogger.info("Executing script in session: \(session.id)")
+
+        let requestBody: [String: Any] = [
+            "script": script,
+            "args": args,
+        ]
+
+        let requestData: Data
+        do {
+            requestData = try JSONSerialization.data(
+                withJSONObject: requestBody, options: [])
+        } catch {
+            throw AppiumError.encodingError(
+                "Failed to encode request body for execute script")
+        }
+
+        var request: HTTPClient.Request
+        request = try HTTPClient.Request(
+            url: API.execute(session.id).path, method: .POST
+        )
+        request.headers.add(name: "Content-Type", value: "application/json")
+        request.body = .data(requestData)
+
+        do {
+            let response = try await session.client.execute(request: request)
+                .get()
+            if response.status == .ok {
+                appiumLogger.info("Script executed successfully.")
+                if let responseData = response.body {
+                    let jsonResponse =
+                        try JSONSerialization.jsonObject(
+                            with: responseData, options: []) as? [String: Any]
+                    return jsonResponse?["value"]
+                }
+            } else {
+                appiumLogger.error(
+                    "Failed to execute script. Status: \(response.status)")
+                throw AppiumError.invalidResponse(
+                    "Failed to execute script")
+            }
+        } catch {
+            appiumLogger.error("Error while executing script: \(error)")
+            throw AppiumError.invalidResponse(
+                "Failed to execute script: \(error.localizedDescription)")
+        }
+        return nil
+    }
+
     public static func waitAndClickElement(
-        _ client: HTTPClient,
-        _ sessionId: String,
+        _ session: Session,
         strategy: Strategy,
         selector: String,
         timeout: Int = 2
     ) async throws {
         let elementId = try await waitForElement(
-            client,
-            sessionId: sessionId,
+            session,
             strategy: strategy,
             selector: selector,
             timeout: TimeInterval(timeout)
         )
 
         try await clickElement(
-            client: client,
-            sessionId: sessionId,
+            session,
             elementId: elementId
         )
-        webLogger.info(
+        appiumLogger.info(
             "Found and clicked element with selector: \(selector)")
     }
 
+    public static func hideKeyboard(
+        _ session: Session
+    )
+        async throws
+    {
+        appiumLogger.info(
+            "Attempting to hide keyboard in session: \(session.id)")
+
+        var request: HTTPClient.Request
+
+        request = try HTTPClient.Request(
+            url: API.hideKeyboard(session.id).path, method: .POST
+        )
+
+        request.headers.add(name: "Content-Type", value: "application/json")
+
+        do {
+            let response = try await session.client.execute(request: request)
+                .get()
+            if response.status == .ok {
+                appiumLogger.info("Keyboard hidden successfully.")
+            } else {
+                appiumLogger.error(
+                    "Failed to hide keyboard. Status: \(response.status)")
+                throw AppiumError.invalidResponse(
+                    "Failed to hide keyboard. Status: \(response.status)")
+            }
+        } catch {
+            appiumLogger.error("Error while hiding keyboard: \(error)")
+            throw AppiumError.elementNotFound(
+                "Error while hiding keyboard: \(error)")
+        }
+    }
+}
+
+extension Client {
     public static func clickElement(
-        client: HTTPClient,
-        sessionId: String,
+        _ session: Session,
         elementId: String
     ) async throws {
         appiumLogger.info(
-            "Clicking element: \(elementId) in session: \(sessionId)")
+            "Clicking element: \(elementId) in session: \(session.id)")
         var request = try HTTPClient.Request(
-            url: API.click(elementId, sessionId).path,
+            url: API.click(elementId, session.id).path,
             method: .POST)
         request.headers.add(name: "Content-Type", value: "application/json")
 
         do {
-            let response = try await client.execute(request: request).get()
+            let response = try await session.client.execute(request: request)
+                .get()
             guard response.status == .ok else {
                 throw AppiumError.invalidResponse(
                     "Failed to click element: HTTP \(response.status)")
@@ -205,13 +291,12 @@ extension Client {
     }
 
     public static func sendKeys(
-        client: HTTPClient,
-        sessionId: String,
+        _ session: Session,
         elementId: String,
         text: String
     ) async throws {
         appiumLogger.info(
-            "Sending keys to element: \(elementId) in session: \(sessionId) with text: \(text)"
+            "Sending keys to element: \(elementId) in session: \(session.id) with text: \(text)"
         )
 
         let requestBody: Data
@@ -223,13 +308,14 @@ extension Client {
         }
 
         var request = try HTTPClient.Request(
-            url: API.value(elementId, sessionId).path,
+            url: API.value(elementId, session.id).path,
             method: .POST)
         request.headers.add(name: "Content-Type", value: "application/json")
         request.body = .data(requestBody)
 
         do {
-            let response = try await client.execute(request: request).get()
+            let response = try await session.client.execute(request: request)
+                .get()
             guard response.status == .ok else {
                 throw AppiumError.invalidResponse(
                     "Failed to send keys: HTTP \(response.status)")
@@ -240,32 +326,6 @@ extension Client {
             throw AppiumError.elementNotFound(
                 "Failed to send keys to element: \(elementId) - \(error.localizedDescription)"
             )
-        }
-    }
-    
-    public static func hideKeyboard(client: HTTPClient, sessionId: String) async throws {
-        appiumLogger.info("Attempting to hide keyboard in session: \(sessionId)")
-
-        var request: HTTPClient.Request
-        
-            request = try HTTPClient.Request(
-                url: API.hideKeyboard(sessionId).path, method: .POST
-            )
-        
-
-        request.headers.add(name: "Content-Type", value: "application/json")
-
-        do {
-            let response = try await client.execute(request: request).get()
-            if response.status == .ok {
-                appiumLogger.info("Keyboard hidden successfully.")
-            } else {
-                appiumLogger.error("Failed to hide keyboard. Status: \(response.status)")
-                throw AppiumError.invalidResponse("Failed to hide keyboard. Status: \(response.status)")
-            }
-        } catch {
-            appiumLogger.error("Error while hiding keyboard: \(error)")
-            throw AppiumError.elementNotFound("Error while hiding keyboard: \(error)")
         }
     }
 }
