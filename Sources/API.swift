@@ -23,11 +23,11 @@ public enum API {
     case execute(String)
     case selected(String, String)
     case text(String, String)
+    case displayed(String, String)
 
     public static let serverURL = "http://localhost:4723"
 
-    private func path(for sessionId: String, additional: String = "") -> String
-    {
+    private func path(for sessionId: String, additional: String = "") -> String {
         return "\(API.serverURL)/session/\(sessionId)\(additional)"
     }
 
@@ -44,33 +44,27 @@ public enum API {
         case .element(let sessionId):
             return path(for: sessionId, additional: "/element")
         case .click(let elementId, let sessionId):
-            return path(
-                for: sessionId, additional: "/element/\(elementId)/click")
+            return path(for: sessionId, additional: "/element/\(elementId)/click")
         case .value(let elementId, let sessionId):
-            return path(
-                for: sessionId, additional: "/element/\(elementId)/value")
+            return path(for: sessionId, additional: "/element/\(elementId)/value")
         case .url(let sessionId):
             return path(for: sessionId, additional: "/url")
         case .settings(let sessionId):
             return path(for: sessionId, additional: "/appium/settings")
         case .hideKeyboard(let sessionId):
-            return path(
-                for: sessionId, additional: "/appium/device/hide_keyboard")
+            return path(for: sessionId, additional: "/appium/device/hide_keyboard")
         case .reset(let sessionId):
-            return path(
-                for: sessionId, additional: "/appium/app/reset")
+            return path(for: sessionId, additional: "/appium/app/reset")
         case .fullscreen(let sessionId):
-            return path(
-                for: sessionId, additional: "/window/fullscreen")
+            return path(for: sessionId, additional: "/window/fullscreen")
         case .execute(let sessionId):
-            return path(
-                for: sessionId, additional: "/execute/sync")
+            return path(for: sessionId, additional: "/execute/sync")
         case .selected(let elementId, let sessionId):
-            return path(
-                for: sessionId, additional: "/element/\(elementId)/selected")
+            return path(for: sessionId, additional: "/element/\(elementId)/selected")
         case .text(let elementId, let sessionId):
-            return path(
-                for: sessionId, additional: "/element/\(elementId)/text")
+            return path(for: sessionId, additional: "/element/\(elementId)/text")
+        case .displayed(let elementId, let sessionId):
+            return path(for: sessionId, additional: "/element/\(elementId)/displayed")
         }
     }
 }

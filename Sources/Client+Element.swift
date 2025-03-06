@@ -153,6 +153,83 @@ public struct Client {
         }
     }
 
+    public static func checkElementVisibility(
+        _ session: Session,
+        strategy: Strategy,
+        selector: String
+    ) async throws -> Bool {
+        appiumLogger.info(
+            "Checking visibility of element with strategy: \(strategy.rawValue) and selector: \(selector) in session: \(session.id)"
+        )
+
+        let elementId: String
+        do {
+            elementId = try await Client.waitForElement(
+                session, strategy: strategy, selector: selector, timeout: 3)
+        } catch {
+            appiumLogger.error("Failed to find element: \(error)")
+            throw error
+        }
+
+        let request: HTTPClient.Request
+        do {
+            request = try HTTPClient.Request(
+                url:
+                    API.displayed(elementId, session.id).path,
+                method: .GET
+            )
+        } catch {
+            appiumLogger.error("Failed to create request: \(error)")
+            throw AppiumError.invalidResponse(
+                "Failed to create request: \(error.localizedDescription)")
+        }
+
+        appiumLogger.info("Sending request to URL: \(request.url)")
+        let response: HTTPClient.Response
+        do {
+            response = try await session.client.execute(request: request).get()
+        } catch {
+            appiumLogger.error("Failed to execute request: \(error)")
+            throw error
+        }
+
+        appiumLogger.info("Received response with status: \(response.status)")
+        guard response.status == .ok else {
+            appiumLogger.error(
+                "Failed to check element visibility: HTTP \(response.status)")
+            throw AppiumError.invalidResponse(
+                "Failed to check element visibility: HTTP \(response.status)")
+        }
+
+        guard let responseData = response.body else {
+            appiumLogger.error("No response body")
+            throw AppiumError.invalidResponse(
+                "No response data received when checking element visibility.")
+        }
+
+        if let responseString = responseData.getString(
+            at: 0, length: responseData.readableBytes)
+        {
+            appiumLogger.info("Raw response data: \(responseString)")
+        } else {
+            appiumLogger.error("Failed to read response data as string")
+        }
+
+        // Decode the JSON response to extract the "value" key
+        do {
+            let visibilityResponse = try JSONDecoder().decode(
+                VisibilityResponse.self, from: responseData)
+            return visibilityResponse.value
+        } catch {
+            appiumLogger.error(
+                "Failed to decode visibility response: \(error.localizedDescription)"
+            )
+            throw AppiumError.invalidResponse(
+                "Failed to decode visibility response: \(error.localizedDescription)"
+            )
+        }
+    }
+
     public static func executeScript(
         _ session: Session,
         script: String,
@@ -206,27 +283,6 @@ public struct Client {
         return nil
     }
 
-    public static func waitAndClickElement(
-        _ session: Session,
-        strategy: Strategy,
-        selector: String,
-        timeout: Int = 2
-    ) async throws {
-        let elementId = try await waitForElement(
-            session,
-            strategy: strategy,
-            selector: selector,
-            timeout: TimeInterval(timeout)
-        )
-
-        try await clickElement(
-            session,
-            elementId: elementId
-        )
-        appiumLogger.info(
-            "Found and clicked element with selector: \(selector)")
-    }
-
     public static func hideKeyboard(
         _ session: Session
     )
@@ -265,8 +321,18 @@ public struct Client {
 extension Client {
     public static func clickElement(
         _ session: Session,
-        elementId: String
+        strategy: Strategy,
+        selector: String
     ) async throws {
+        let elementId: String
+        do {
+            elementId = try await Client.waitForElement(
+                session, strategy: strategy, selector: selector, timeout: 3)
+        } catch {
+            appiumLogger.error("Failed to find element: \(error)")
+            throw error
+        }
+
         appiumLogger.info(
             "Clicking element: \(elementId) in session: \(session.id)")
         var request = try HTTPClient.Request(
@@ -292,9 +358,20 @@ extension Client {
 
     public static func sendKeys(
         _ session: Session,
-        elementId: String,
+        strategy: Strategy,
+        selector: String,
         text: String
     ) async throws {
+
+        let elementId: String
+        do {
+            elementId = try await Client.waitForElement(
+                session, strategy: strategy, selector: selector, timeout: 3)
+        } catch {
+            appiumLogger.error("Failed to find element: \(error)")
+            throw error
+        }
+
         appiumLogger.info(
             "Sending keys to element: \(elementId) in session: \(session.id) with text: \(text)"
         )
