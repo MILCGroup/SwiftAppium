@@ -5,13 +5,13 @@
 //  See LICENSE for information
 //
 
-struct ElementResponse: Codable {
-    let value: ElementValue
+public struct ElementResponse: Codable {
+    public let value: ElementValue
 
-    struct ElementValue: Codable {
-        let elementId: String
+    public struct ElementValue: Codable {
+        public let elementId: String
 
-        private enum CodingKeys: String, CodingKey {
+        public enum CodingKeys: String, CodingKey {
             case elementId = "ELEMENT"
         }
     }

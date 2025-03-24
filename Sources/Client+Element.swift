@@ -29,14 +29,16 @@ public struct Client {
                     appiumLogger.info("Element \(element) found!")
                     return element
                 }
+            } catch AppiumError.elementNotFound {
+                if Date().timeIntervalSince(startTime) > timeout {
+                    try await session.client.shutdown()
+                    throw AppiumError.timeoutError(
+                        "Timeout reached while waiting for element with selector: \(selector)"
+                    )
+                }
+            } catch {
+                throw error
             }
-
-            if Date().timeIntervalSince(startTime) > timeout {
-                throw AppiumError.timeoutError(
-                    "Timeout reached while waiting for element with selector: \(selector)"
-                )
-            }
-            try await Wait.sleep(for: Wait.searchAgainDelay)
         }
     }
 
@@ -45,10 +47,6 @@ public struct Client {
         strategy: Strategy,
         selector: String
     ) async throws -> String? {
-        appiumLogger.info(
-            "Trying to find element with strategy: \(strategy.rawValue) and selector: \(selector) in session: \(session.id)"
-        )
-
         let requestBody: Data
         do {
             requestBody = try JSONEncoder().encode([
@@ -76,7 +74,6 @@ public struct Client {
         request.headers.add(name: "Content-Type", value: "application/json")
         request.body = .data(requestBody)
 
-        appiumLogger.info("Sending request to URL: \(request.url)")
         let response: HTTPClient.Response
         do {
             response = try await session.client.execute(request: request).get()
@@ -84,12 +81,10 @@ public struct Client {
             appiumLogger.error("Failed to execute request: \(error)")
             return nil
         }
-        appiumLogger.info("Received response with status: \(response.status)")
 
         guard response.status == .ok else {
-            appiumLogger.error(
-                "Failed to find element: HTTP \(response.status)")
-            return nil
+            throw AppiumError.elementNotFound(
+                "Failed to find element: \(selector)")
         }
 
         guard var byteBuffer = response.body else {
@@ -103,8 +98,6 @@ public struct Client {
             return nil
         }
 
-        appiumLogger.info("Element response body: \(body)")
-
         do {
             let elementResponse = try JSONDecoder().decode(
                 ElementResponse.self, from: Data(body.utf8))
@@ -116,6 +109,7 @@ public struct Client {
             return nil
         }
     }
+
     public static func containsInHierarchy(
         _ session: Session,
         contains text: String
@@ -215,7 +209,6 @@ public struct Client {
             appiumLogger.error("Failed to read response data as string")
         }
 
-        // Decode the JSON response to extract the "value" key
         do {
             let visibilityResponse = try JSONDecoder().decode(
                 VisibilityResponse.self, from: responseData)
@@ -322,16 +315,11 @@ extension Client {
     public static func clickElement(
         _ session: Session,
         strategy: Strategy,
-        selector: String
+        selector: String,
+        _ wait: TimeInterval = 5
     ) async throws {
-        let elementId: String
-        do {
-            elementId = try await Client.waitForElement(
-                session, strategy: strategy, selector: selector, timeout: 3)
-        } catch {
-            appiumLogger.error("Failed to find element: \(error)")
-            throw error
-        }
+        let elementId = try await waitForElement(
+            session, strategy: strategy, selector: selector, timeout: wait)
 
         appiumLogger.info(
             "Clicking element: \(elementId) in session: \(session.id)")
