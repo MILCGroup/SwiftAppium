@@ -23,6 +23,10 @@ let package = Package(
             dependencies: [
                 .product(name: "AsyncHTTPClient", package: "async-http-client")
             ]
+        ),
+        .testTarget(
+            name: "SwiftAppiumTests",
+            dependencies: ["SwiftAppium"]
         )
     ]
 )

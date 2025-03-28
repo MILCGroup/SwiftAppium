@@ -10,4 +10,5 @@ public enum AppiumError: Error {
     case elementNotFound(String)
     case encodingError(String)
     case timeoutError(String)
+    case notFound(String)
 }
