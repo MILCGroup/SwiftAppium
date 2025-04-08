@@ -14,6 +14,7 @@ public enum API {
     case source(String)
     case element(String)
     case click(String, String)
+    case attributeValue(String, String)
     case value(String, String)
     case url(String)
     case settings(String)
@@ -45,8 +46,10 @@ public enum API {
             return path(for: sessionId, additional: "/element")
         case .click(let elementId, let sessionId):
             return path(for: sessionId, additional: "/element/\(elementId)/click")
-        case .value(let elementId, let sessionId):
+        case .attributeValue(let elementId, let sessionId):
             return path(for: sessionId, additional: "/element/\(elementId)/attribute/value")
+        case .value(let elementId, let sessionId):
+            return path(for: sessionId, additional: "/element/\(elementId)/value")
         case .url(let sessionId):
             return path(for: sessionId, additional: "/url")
         case .settings(let sessionId):

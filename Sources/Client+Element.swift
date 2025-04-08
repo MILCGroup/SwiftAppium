@@ -207,7 +207,7 @@ public struct Client {
          let request: HTTPClient.Request
          do {
              request = try HTTPClient.Request(
-                url: API.value(elementId, session.id).path,
+                url: API.attributeValue(elementId, session.id).path,
                  method: .GET
              )
          } catch {
