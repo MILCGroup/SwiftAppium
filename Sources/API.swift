@@ -46,7 +46,7 @@ public enum API {
         case .click(let elementId, let sessionId):
             return path(for: sessionId, additional: "/element/\(elementId)/click")
         case .value(let elementId, let sessionId):
-            return path(for: sessionId, additional: "/element/\(elementId)/value")
+            return path(for: sessionId, additional: "/element/\(elementId)/attribute/value")
         case .url(let sessionId):
             return path(for: sessionId, additional: "/url")
         case .settings(let sessionId):
