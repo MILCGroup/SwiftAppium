@@ -13,7 +13,7 @@ public struct Session: Sendable {
     public static let sharediOS = Session(id: "", platform: .iOS)
     
     public let client: HTTPClient
-    public let id: String
+    public var id: String
     public let platform: Platform
     public let deviceName: String
 
