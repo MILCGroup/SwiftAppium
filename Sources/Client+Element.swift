@@ -7,6 +7,7 @@
 
 import AsyncHTTPClient
 import Foundation
+import Testing
 
 public struct Client {
     public static func waitForElement(
@@ -32,6 +33,7 @@ public struct Client {
             } catch AppiumError.elementNotFound {
                 if Date().timeIntervalSince(startTime) > timeout {
                     try await session.client.shutdown()
+                    #expect(Bool(false), "Timeout reached while waiting for element with selector: \(selector)")
                     throw AppiumError.timeoutError(
                         "Timeout reached while waiting for element with selector: \(selector)"
                     )
