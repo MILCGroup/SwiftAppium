@@ -8,16 +8,12 @@
 import AsyncHTTPClient
 
 public struct Session: Sendable {
-    @MainActor private static var sharedWeb = Session(id: "", platform: .browser)
-    public static let sharedAndroid = Session(id: "", platform: .android)
-    public static let sharediOS = Session(id: "", platform: .iOS)
-    
     public let client: HTTPClient
-    public var id: String
+    public let id: String
     public let platform: Platform
     public let deviceName: String
 
-    public init(client: HTTPClient = HTTPClient(eventLoopGroupProvider: .singleton), id: String, platform: Platform) {
+    public init(client: HTTPClient, id: String, platform: Platform) {
         self.client = client
         self.id = id
         self.platform = platform
@@ -31,16 +27,5 @@ public struct Session: Sendable {
         self.id = id
         self.platform = device.platform
         self.deviceName = device.deviceName ?? ""
-    }
-   @MainActor
-    public static func shared(platform: Platform) -> Session {
-        switch platform {
-        case .browser:
-            return .sharedWeb
-        case .android:
-            return .sharedAndroid
-        case .iOS:
-            return .sharediOS
-        }
     }
 }
