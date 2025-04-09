@@ -7,7 +7,7 @@
 
 import AsyncHTTPClient
 
-public struct Session {
+public struct Session: Sendable {
     public let client: HTTPClient
     public let id: String
     public let platform: Platform

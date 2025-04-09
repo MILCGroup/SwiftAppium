@@ -5,7 +5,7 @@
 //  See LICENSE for information
 //
 
-public enum Platform: String, Codable, Equatable {
+public enum Platform: String, Codable, Equatable, Sendable {
     case android = "Android"
     case iOS
     case browser = "mac"
