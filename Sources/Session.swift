@@ -32,4 +32,8 @@ public struct Session: Sendable {
         self.platform = device.platform
         self.deviceName = device.deviceName ?? ""
     }
+    
+    public mutating func setID(_ newID: String) {
+        self.id = newID
+    }
 }
