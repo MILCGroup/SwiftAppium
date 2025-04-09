@@ -32,5 +32,15 @@ public struct Session: Sendable {
         self.platform = device.platform
         self.deviceName = device.deviceName ?? ""
     }
-    
+   @MainActor
+    public static func shared(platform: Platform) -> Session {
+        switch platform {
+        case .browser:
+            return .sharedWeb
+        case .android:
+            return .sharedAndroid
+        case .iOS:
+            return .sharediOS
+        }
+    }
 }
