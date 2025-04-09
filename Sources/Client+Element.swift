@@ -550,11 +550,11 @@ extension Client {
                 throw AppiumError.invalidResponse(
                     "Failed to click element: HTTP \(response.status)")
             }
-        } catch let error as AppiumError {
-            throw error
         } catch {
-            throw AppiumError.elementNotFound(
-                "Failed to click element: \(elementId) - \(error.localizedDescription)"
+            try await session.client.shutdown()
+            try #require(Bool(false), "Unable to click element: \(selector)")
+            throw AppiumError.timeoutError(
+                "Unable to click element: \(elementId) - \(error.localizedDescription)"
             )
         }
     }
