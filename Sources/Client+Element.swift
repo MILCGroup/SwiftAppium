@@ -553,9 +553,35 @@ extension Client {
         } catch {
             try await session.client.shutdown()
             try #require(Bool(false), "Unable to click element: \(selector)")
-            throw AppiumError.timeoutError(
-                "Unable to click element: \(elementId) - \(error.localizedDescription)"
-            )
+        }
+    }
+    
+    public static func clickUnsafeElement(
+        _ session: Session,
+        strategy: Strategy,
+        selector: String,
+        _ wait: TimeInterval = 5
+    ) async throws
+    {
+        let elementId = try await waitForElement(
+            session, strategy: strategy, selector: selector, timeout: wait)
+
+        appiumLogger.info(
+            "Clicking element: \(elementId) in session: \(session.id)")
+        var request = try HTTPClient.Request(
+            url: API.click(elementId, session.id).path,
+            method: .POST)
+        request.headers.add(name: "Content-Type", value: "application/json")
+
+        do {
+            let response = try await session.client.execute(request: request)
+                .get()
+            guard response.status == .ok else {
+                throw AppiumError.invalidResponse(
+                    "Failed to click element: HTTP \(response.status)")
+            }
+        } catch {
+            throw AppiumError.invalidResponse("Failed to click element: \(error)")
         }
     }
 
