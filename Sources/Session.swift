@@ -8,6 +8,10 @@
 import AsyncHTTPClient
 
 public struct Session: Sendable {
+    public static let sharedWeb = Session(id: "", platform: .browser)
+    public static let sharedAndroid = Session(id: "", platform: .android)
+    public static let sharediOS = Session(id: "", platform: .iOS)
+    
     public let client: HTTPClient
     public let id: String
     public let platform: Platform
