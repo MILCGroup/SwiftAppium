@@ -13,7 +13,7 @@ public struct Session: Sendable {
     public let platform: Platform
     public let deviceName: String
 
-    public init(client: HTTPClient, id: String, platform: Platform) {
+    public init(client: HTTPClient = HTTPClient(eventLoopGroupProvider: .singleton), id: String, platform: Platform) {
         self.client = client
         self.id = id
         self.platform = platform
