@@ -73,7 +73,7 @@ public class ClientModel: AppiumClient {
     public func clickElement(
         _ session: Session,
         _ element: Element,
-        _ wait: TimeInterval
+        _ wait: TimeInterval = 5
     ) async throws {
         try await Client.clickElement(
             session,
