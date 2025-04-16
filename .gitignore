@@ -4,4 +4,4 @@
 *.xcworkspace
 *.xcuserdata
 DerivedData/
-build/
+.build/

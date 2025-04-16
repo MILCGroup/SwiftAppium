@@ -1,13 +1,13 @@
 //
-//  AppiumClientModel.swift
+//  ClientModel.swift
 //  SwiftAppium
-//
-//  Created by Dalton Alexandre on 3/28/25.
+//  https://github.com/milcgroup/SwiftAppium
+//  See LICENSE for information
 //
 
 import Foundation
 
-public class AppiumClientModel: AppiumClient {
+public class ClientModel: AppiumClient {
     private let session: Session
     
     public init(session: Session) {
@@ -98,7 +98,6 @@ public class AppiumClientModel: AppiumClient {
         )
     }
     
-    // Convenience methods that use the stored session
     public func waitForElement(
         _ element: Element,
         timeout: TimeInterval

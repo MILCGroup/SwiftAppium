@@ -1,11 +1,9 @@
 //
 //  Element.swift
 //  SwiftAppium
+//  https://github.com/milcgroup/SwiftAppium
+//  See LICENSE for information
 //
-//  Created by Dalton Alexandre on 4/15/25.
-//
-
-import Foundation
 
 public struct Element: Sendable {
     public let strategy: Strategy
@@ -14,13 +12,5 @@ public struct Element: Sendable {
     public init(_ strategy: Strategy,_ selector: Selector) {
         self.strategy = strategy
         self.selector = selector
-    }
-}
-
-public struct Selector: Sendable {
-    public let wrappedValue: String
-    
-    public init(_ wrappedValue: String) {
-        self.wrappedValue = wrappedValue
     }
 }

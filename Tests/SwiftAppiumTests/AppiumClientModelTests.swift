@@ -10,7 +10,7 @@ enum TestError: Error {
 struct AppiumClientModelTests {
     private var session: Session?
     private var element: Element?
-    private var client: AppiumClientModel?
+    private var client: ClientModel?
     private var mockClient: MockAppiumClient?
     private var httpClient: HTTPClient?
     
@@ -18,7 +18,7 @@ struct AppiumClientModelTests {
     func setupAndTeardown() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
         let session: Session! = Session(client: httpClient, id: "test-session-id", platform: .android)
-        let client: AppiumClientModel? = AppiumClientModel(session: session)
+        let client: ClientModel? = ClientModel(session: session)
         let selector: Selector! = .init(wrappedValue: "test-button")
         let element: Element? = Element(strategy: .id, selector: selector)
         let mockClient: MockAppiumClient! = MockAppiumClient()
