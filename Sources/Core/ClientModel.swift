@@ -8,11 +8,7 @@
 import Foundation
 
 public class ClientModel: AppiumClient {
-    private let session: Session
-    
-    public init(session: Session) {
-        self.session = session
-    }
+    public init() {}
     
     public func waitForElement(
         _ session: Session,
