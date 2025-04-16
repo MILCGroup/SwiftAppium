@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Element {
+public struct Element: Sendable {
     public let strategy: Strategy
     public let selector: Selector
     
@@ -17,7 +17,7 @@ public struct Element {
     }
 }
 
-public struct Selector {
+public struct Selector: Sendable {
     public let wrappedValue: String
     
     public init(_ wrappedValue: String) {

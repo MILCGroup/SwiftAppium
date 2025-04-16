@@ -5,7 +5,7 @@
 //  See LICENSE for information
 //
 
-public enum Strategy: String {
+public enum Strategy: String, Sendable {
     case accessibilityId = "accessibility id"
     case className = "class name"
     case cssSelector = "css selector"
