@@ -107,7 +107,7 @@ extension Client {
      
     public static func checkElementVisibility(
         _ session: Session,
-        _ element: Element,
+        _ element: Element
     ) async throws -> Bool {
         appiumLogger.info(
             "Checking visibility of element with strategy: \(element.strategy.rawValue) and selector: \(element.selector.wrappedValue) in session: \(session.id)"
@@ -182,7 +182,7 @@ extension Client {
 
     public static func checkElementChecked(
         _ session: Session,
-        _ element: Element,
+        _ element: Element
     ) async throws -> Bool {
         appiumLogger.info(
             "Checking visibility of element with strategy: \(element.strategy.rawValue) and selector: \(element.selector.wrappedValue) in session: \(session.id)"

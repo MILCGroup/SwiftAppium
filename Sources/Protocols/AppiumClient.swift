@@ -16,7 +16,7 @@ public protocol AppiumClient {
     
     func findElement(
         _ session: Session,
-        _ element: Element,
+        _ element: Element
     ) async throws -> String?
     
     func containsInHierarchy(
@@ -26,7 +26,7 @@ public protocol AppiumClient {
     
     func checkElementVisibility(
         _ session: Session,
-        _ element: Element,
+        _ element: Element
     ) async throws -> Bool
     
     func executeScript(
