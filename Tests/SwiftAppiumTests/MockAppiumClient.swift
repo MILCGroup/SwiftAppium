@@ -43,6 +43,28 @@ class MockAppiumClient: AppiumClient {
         return mockResponses[key] as? Bool ?? false
     }
     
+    public func containsMultipleInHierarchy(
+        _ session: Session,
+        contains times: Int, _ text: String
+    ) async throws -> Bool {
+        let key = "containsMultipleInHierarchy_\(text)"
+        if let error = mockErrors[key] {
+            throw error
+        }
+        return mockResponses[key] as? Bool ?? false
+    }
+    
+    public func elementValue(
+        _ session: Session,
+        _ element: Element
+    ) async throws -> Double {
+        let key = "checkElementVisibility_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
+        if let error = mockErrors[key] {
+            throw error
+        }
+        return mockResponses[key] as? Double ?? 0
+    }
+    
     func checkElementVisibility(
         _ session: Session,
         _ element: Element,
@@ -76,6 +98,17 @@ class MockAppiumClient: AppiumClient {
     }
     
     func clickElement(
+        _ session: Session,
+        _ element: Element,
+        _ wait: TimeInterval
+    ) async throws {
+        let key = "clickElement_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
+        if let error = mockErrors[key] {
+            throw error
+        }
+    }
+    
+    func clickUnsafeElement(
         _ session: Session,
         _ element: Element,
         _ wait: TimeInterval

@@ -56,8 +56,8 @@ extension Client {
 
     public static func containsMultipleInHierarchy(
         _ session: Session,
-        contains text: String,
-        _ times: Int
+        contains times: Int,
+        _ text: String
     ) async throws -> Bool {
         do {
             let request = try HTTPClient.Request(

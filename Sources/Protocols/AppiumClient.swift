@@ -24,6 +24,16 @@ public protocol AppiumClient {
         contains text: String
     ) async throws -> Bool
     
+    func containsMultipleInHierarchy(
+        _ session: Session,
+        contains times: Int, _ text: String
+    ) async throws -> Bool
+    
+    func elementValue(
+        _ session: Session,
+        _ element: Element
+    ) async throws -> Double
+    
     func checkElementVisibility(
         _ session: Session,
         _ element: Element
@@ -40,6 +50,12 @@ public protocol AppiumClient {
     ) async throws
     
     func clickElement(
+        _ session: Session,
+        _ element: Element,
+        _ wait: TimeInterval
+    ) async throws
+    
+    func clickUnsafeElement(
         _ session: Session,
         _ element: Element,
         _ wait: TimeInterval

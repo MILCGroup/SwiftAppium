@@ -42,6 +42,26 @@ public class ClientModel: AppiumClient {
         )
     }
     
+    public func containsMultipleInHierarchy(
+        _ session: Session,
+        contains times: Int, _ text: String
+    ) async throws -> Bool {
+        return try await Client.containsMultipleInHierarchy(
+            session,
+            contains: times, text
+        )
+    }
+    
+    public func elementValue(
+        _ session: Session,
+        _ element: Element
+    ) async throws -> Double {
+        return try await Client.elementValue(
+            session,
+            element
+        )
+    }
+    
     public func checkElementVisibility(
         _ session: Session,
         _ element: Element
@@ -76,6 +96,18 @@ public class ClientModel: AppiumClient {
         _ wait: TimeInterval = 5
     ) async throws {
         try await Client.clickElement(
+            session,
+            element,
+            wait
+        )
+    }
+    
+    public func clickUnsafeElement(
+        _ session: Session,
+        _ element: Element,
+        _ wait: TimeInterval = 5
+    ) async throws {
+        try await Client.clickUnsafeElement(
             session,
             element,
             wait
