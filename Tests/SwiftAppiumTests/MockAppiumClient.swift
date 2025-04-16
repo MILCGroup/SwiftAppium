@@ -8,11 +8,10 @@ class MockAppiumClient: AppiumClient {
     
     func waitForElement(
         _ session: Session,
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         timeout: TimeInterval
     ) async throws -> String {
-        let key = "waitForElement_\(strategy.rawValue)_\(selector)"
+        let key = "waitForElement_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
         if let error = mockErrors[key] {
             throw error
         }
@@ -24,10 +23,9 @@ class MockAppiumClient: AppiumClient {
     
     func findElement(
         _ session: Session,
-        strategy: Strategy,
-        selector: String
+        _ element: Element,
     ) async throws -> String? {
-        let key = "findElement_\(strategy.rawValue)_\(selector)"
+        let key = "findElement_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
         if let error = mockErrors[key] {
             throw error
         }
@@ -47,10 +45,9 @@ class MockAppiumClient: AppiumClient {
     
     func checkElementVisibility(
         _ session: Session,
-        strategy: Strategy,
-        selector: String
+        _ element: Element,
     ) async throws -> Bool {
-        let key = "checkElementVisibility_\(strategy.rawValue)_\(selector)"
+        let key = "checkElementVisibility_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
         if let error = mockErrors[key] {
             throw error
         }
@@ -80,11 +77,10 @@ class MockAppiumClient: AppiumClient {
     
     func clickElement(
         _ session: Session,
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         _ wait: TimeInterval
     ) async throws {
-        let key = "clickElement_\(strategy.rawValue)_\(selector)"
+        let key = "clickElement_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
         if let error = mockErrors[key] {
             throw error
         }
@@ -92,11 +88,10 @@ class MockAppiumClient: AppiumClient {
     
     func sendKeys(
         _ session: Session,
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         text: String
     ) async throws {
-        let key = "sendKeys_\(strategy.rawValue)_\(selector)_\(text)"
+        let key = "sendKeys_\(element.strategy.rawValue)_\(element.selector.wrappedValue)_\(text)"
         if let error = mockErrors[key] {
             throw error
         }

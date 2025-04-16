@@ -12,8 +12,7 @@ import Testing
 public struct Client {
     public static func waitForElement(
         _ session: Session,
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         timeout: TimeInterval
     ) async throws -> String {
         let startTime = Date()
@@ -22,20 +21,19 @@ public struct Client {
             do {
                 let elementFound = try await findElement(
                     session,
-                    strategy: strategy,
-                    selector: selector
+                    element
                 )
                 
-                if let element = elementFound {
-                    appiumLogger.info("Element \(element) found!")
-                    return element
+                if let elementF = elementFound {
+                    appiumLogger.info("Element \(elementF) found!")
+                    return elementF
                 }
             } catch AppiumError.elementNotFound {
                 if Date().timeIntervalSince(startTime) > timeout {
                     try await session.client.shutdown()
-                    try #require(Bool(false), "Timeout reached while waiting for element with selector: \(selector)")
+                    try #require(Bool(false), "Timeout reached while waiting for element with selector: \(element.selector.wrappedValue)")
                     throw AppiumError.timeoutError(
-                        "Timeout reached while waiting for element with selector: \(selector)"
+                        "Timeout reached while waiting for element with selector: \(element.selector.wrappedValue)"
                     )
                 }
             } catch {
@@ -46,14 +44,13 @@ public struct Client {
     
     public static func findElement(
         _ session: Session,
-        strategy: Strategy,
-        selector: String
+        _ element: Element
     ) async throws -> String? {
         let requestBody: Data
         do {
             requestBody = try JSONEncoder().encode([
-                "using": strategy.rawValue,
-                "value": selector,
+                "using": element.strategy.rawValue,
+                "value": element.selector.wrappedValue,
             ])
         } catch {
             appiumLogger.error(
@@ -86,7 +83,7 @@ public struct Client {
         
         guard response.status == .ok else {
             throw AppiumError.elementNotFound(
-                "Failed to find element: \(selector)")
+                "Failed to find element: \(element.selector.wrappedValue)")
         }
         
         guard var byteBuffer = response.body else {
@@ -190,17 +187,16 @@ public struct Client {
     
     public static func elementValue(
          _ session: Session,
-         strategy: Strategy,
-         selector: String
+         _ element: Element
      ) async throws -> Double {
          appiumLogger.info(
-             "Checking value of element with strategy: \(strategy.rawValue) and selector: \(selector) in session: \(session.id)"
+            "Checking value of element with strategy: \(element.strategy.rawValue) and selector: \(element.selector.wrappedValue) in session: \(session.id)"
          )
          
          let elementId: String
          do {
              elementId = try await Client.waitForElement(
-                 session, strategy: strategy, selector: selector, timeout: 35)
+                 session, element, timeout: 35)
          } catch {
              appiumLogger.error("Failed to find element: \(error)")
              throw error
@@ -286,17 +282,16 @@ public struct Client {
      }
     public static func checkElementVisibility(
         _ session: Session,
-        strategy: Strategy,
-        selector: String
+        _ element: Element,
     ) async throws -> Bool {
         appiumLogger.info(
-            "Checking visibility of element with strategy: \(strategy.rawValue) and selector: \(selector) in session: \(session.id)"
+            "Checking visibility of element with strategy: \(element.strategy.rawValue) and selector: \(element.selector.wrappedValue) in session: \(session.id)"
         )
         
         let elementId: String
         do {
             elementId = try await Client.waitForElement(
-                session, strategy: strategy, selector: selector, timeout: 3)
+                session, element, timeout: 3)
         } catch {
             appiumLogger.error("Failed to find element: \(error)")
             throw error
@@ -449,19 +444,17 @@ public struct Client {
     
     public static func checkElementChecked(
         _ session: Session,
-        strategy: Strategy,
-        selector: String
+        _ element: Element,
     ) async throws -> Bool {
         appiumLogger.info(
-            "Checking visibility of element with strategy: \(strategy.rawValue) and selector: \(selector) in session: \(session.id)"
+            "Checking visibility of element with strategy: \(element.strategy.rawValue) and selector: \(element.selector.wrappedValue) in session: \(session.id)"
         )
 
         let elementId: String
         do {
             elementId = try await Client.waitForElement(
                 session,
-                strategy: strategy,
-                selector: selector,
+                element,
                 timeout: 3
             )
         } catch {
@@ -529,12 +522,11 @@ public struct Client {
 extension Client {
     public static func clickElement(
         _ session: Session,
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         _ wait: TimeInterval = 5
     ) async throws {
         let elementId = try await waitForElement(
-            session, strategy: strategy, selector: selector, timeout: wait)
+            session, element, timeout: wait)
 
         appiumLogger.info(
             "Clicking element: \(elementId) in session: \(session.id)")
@@ -552,19 +544,18 @@ extension Client {
             }
         } catch {
             try await session.client.shutdown()
-            try #require(Bool(false), "Unable to click element: \(selector)")
+            try #require(Bool(false), "Unable to click element: \(element.selector.wrappedValue)")
         }
     }
     
     public static func clickUnsafeElement(
         _ session: Session,
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         _ wait: TimeInterval = 5
     ) async throws
     {
         let elementId = try await waitForElement(
-            session, strategy: strategy, selector: selector, timeout: wait)
+            session, element, timeout: wait)
 
         appiumLogger.info(
             "Clicking element: \(elementId) in session: \(session.id)")
@@ -587,15 +578,14 @@ extension Client {
 
     public static func sendKeys(
         _ session: Session,
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         text: String
     ) async throws {
 
         let elementId: String
         do {
             elementId = try await Client.waitForElement(
-                session, strategy: strategy, selector: selector, timeout: 3)
+                session, element, timeout: 3)
         } catch {
             appiumLogger.error("Failed to find element: \(error)")
             throw error

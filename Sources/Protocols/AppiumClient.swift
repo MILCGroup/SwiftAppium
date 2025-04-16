@@ -10,15 +10,13 @@ import Foundation
 public protocol AppiumClient {
     func waitForElement(
         _ session: Session,
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         timeout: TimeInterval
     ) async throws -> String
     
     func findElement(
         _ session: Session,
-        strategy: Strategy,
-        selector: String
+        _ element: Element,
     ) async throws -> String?
     
     func containsInHierarchy(
@@ -28,8 +26,7 @@ public protocol AppiumClient {
     
     func checkElementVisibility(
         _ session: Session,
-        strategy: Strategy,
-        selector: String
+        _ element: Element,
     ) async throws -> Bool
     
     func executeScript(
@@ -44,15 +41,13 @@ public protocol AppiumClient {
     
     func clickElement(
         _ session: Session,
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         _ wait: TimeInterval
     ) async throws
     
     func sendKeys(
         _ session: Session,
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         text: String
     ) async throws
 }

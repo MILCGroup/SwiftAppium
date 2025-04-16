@@ -16,27 +16,23 @@ public class AppiumClientModel: AppiumClient {
     
     public func waitForElement(
         _ session: Session,
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         timeout: TimeInterval
     ) async throws -> String {
         return try await Client.waitForElement(
             session,
-            strategy: strategy,
-            selector: selector,
+            element,
             timeout: timeout
         )
     }
     
     public func findElement(
         _ session: Session,
-        strategy: Strategy,
-        selector: String
+        _ element: Element,
     ) async throws -> String? {
         return try await Client.findElement(
             session,
-            strategy: strategy,
-            selector: selector
+            element
         )
     }
     
@@ -52,13 +48,11 @@ public class AppiumClientModel: AppiumClient {
     
     public func checkElementVisibility(
         _ session: Session,
-        strategy: Strategy,
-        selector: String
+        _ element: Element,
     ) async throws -> Bool {
         return try await Client.checkElementVisibility(
             session,
-            strategy: strategy,
-            selector: selector
+            element
         )
     }
     
@@ -82,54 +76,46 @@ public class AppiumClientModel: AppiumClient {
     
     public func clickElement(
         _ session: Session,
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         _ wait: TimeInterval
     ) async throws {
         try await Client.clickElement(
             session,
-            strategy: strategy,
-            selector: selector,
+            element,
             wait
         )
     }
     
     public func sendKeys(
         _ session: Session,
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         text: String
     ) async throws {
         try await Client.sendKeys(
             session,
-            strategy: strategy,
-            selector: selector,
+            element,
             text: text
         )
     }
     
     // Convenience methods that use the stored session
     public func waitForElement(
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         timeout: TimeInterval
     ) async throws -> String {
         return try await waitForElement(
             session,
-            strategy: strategy,
-            selector: selector,
+            element,
             timeout: timeout
         )
     }
     
     public func findElement(
-        strategy: Strategy,
-        selector: String
+        _ element: Element
     ) async throws -> String? {
         return try await findElement(
             session,
-            strategy: strategy,
-            selector: selector
+            element
         )
     }
     
@@ -143,13 +129,11 @@ public class AppiumClientModel: AppiumClient {
     }
     
     public func checkElementVisibility(
-        strategy: Strategy,
-        selector: String
+        _ element: Element,
     ) async throws -> Bool {
         return try await checkElementVisibility(
             session,
-            strategy: strategy,
-            selector: selector
+            element
         )
     }
     
@@ -169,27 +153,23 @@ public class AppiumClientModel: AppiumClient {
     }
     
     public func clickElement(
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         _ wait: TimeInterval = 5
     ) async throws {
         try await clickElement(
             session,
-            strategy: strategy,
-            selector: selector,
+            element,
             wait
         )
     }
     
     public func sendKeys(
-        strategy: Strategy,
-        selector: String,
+        _ element: Element,
         text: String
     ) async throws {
         try await sendKeys(
             session,
-            strategy: strategy,
-            selector: selector,
+            element,
             text: text
         )
     }

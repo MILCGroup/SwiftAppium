@@ -9,6 +9,7 @@ enum TestError: Error {
 @Suite("AppiumClientModel Tests")
 struct AppiumClientModelTests {
     private var session: Session?
+    private var element: Element?
     private var client: AppiumClientModel?
     private var mockClient: MockAppiumClient?
     private var httpClient: HTTPClient?
@@ -16,14 +17,18 @@ struct AppiumClientModelTests {
     @Test("Setup and teardown")
     func setupAndTeardown() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
-        let session = Session(client: httpClient, id: "test-session-id", platform: .android)
-        let client = AppiumClientModel(session: session)
-        let mockClient = MockAppiumClient()
+        let session: Session! = Session(client: httpClient, id: "test-session-id", platform: .android)
+        let client: AppiumClientModel? = AppiumClientModel(session: session)
+        let selector: Selector! = .init(wrappedValue: "test-button")
+        let element: Element? = Element(strategy: .id, selector: selector)
+        let mockClient: MockAppiumClient! = MockAppiumClient()
         mockClient.clearMocks()
         
         #expect(session != nil)
         #expect(client != nil)
         #expect(mockClient != nil)
+        #expect(selector != nil)
+        #expect(element != nil)
         
         try? await httpClient.shutdown()
     }
@@ -32,6 +37,8 @@ struct AppiumClientModelTests {
     func waitForElement() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
+        let element = Element(strategy: .id, selector: .init(wrappedValue: "test-button"))
+        let elementTimedOut = Element(strategy: .id, selector: .init(wrappedValue: "timeout-button"))
         let mockClient = MockAppiumClient()
         
         // Test successful case
@@ -42,8 +49,7 @@ struct AppiumClientModelTests {
         
         let elementId = try await mockClient.waitForElement(
             session,
-            strategy: .id,
-            selector: "test-button",
+            element,
             timeout: 5
         )
         
@@ -58,8 +64,7 @@ struct AppiumClientModelTests {
         do {
             _ = try await mockClient.waitForElement(
                 session,
-                strategy: .id,
-                selector: "timeout-button",
+                elementTimedOut,
                 timeout: 1
             )
             throw TestError.expectedError
@@ -74,6 +79,8 @@ struct AppiumClientModelTests {
     func findElement() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
+        let element: Element! = Element(strategy: .id, selector: .init(wrappedValue: "test-input"))
+        let elementNonExistent: Element! = Element(strategy: .id, selector: .init(wrappedValue: "non-existent"))
         let mockClient = MockAppiumClient()
         
         // Test successful case
@@ -84,8 +91,7 @@ struct AppiumClientModelTests {
         
         let elementId = try await mockClient.findElement(
             session,
-            strategy: .id,
-            selector: "test-input"
+            element
         )
         
         #expect(elementId == "input-123")
@@ -99,8 +105,7 @@ struct AppiumClientModelTests {
         do {
             _ = try await mockClient.findElement(
                 session,
-                strategy: .id,
-                selector: "non-existent"
+                elementNonExistent
             )
             throw TestError.expectedError
         } catch AppiumError.elementNotFound {
@@ -147,6 +152,8 @@ struct AppiumClientModelTests {
     func checkElementVisibility() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
+        let element: Element = Element(strategy: .id, selector: .init(wrappedValue: "visible-element"))
+        let elementHidden: Element = Element(strategy: .id, selector: .init(wrappedValue: "hidden-element"))
         let mockClient = MockAppiumClient()
         
         // Test visible case
@@ -157,8 +164,7 @@ struct AppiumClientModelTests {
         
         let isVisible = try await mockClient.checkElementVisibility(
             session,
-            strategy: .id,
-            selector: "visible-element"
+            element
         )
         #expect(isVisible)
         
@@ -170,8 +176,7 @@ struct AppiumClientModelTests {
         
         let isHidden = try await mockClient.checkElementVisibility(
             session,
-            strategy: .id,
-            selector: "hidden-element"
+            elementHidden
         )
         #expect(!isHidden)
         
@@ -231,6 +236,8 @@ struct AppiumClientModelTests {
     func clickElement() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
+        let element: Element! = Element(strategy: .id, selector: .init(wrappedValue: "clickable-button"))
+        let elementError: Element! = Element(strategy: .id, selector: .init(wrappedValue: "error-button"))
         let mockClient = MockAppiumClient()
         
         // Test successful case
@@ -241,8 +248,7 @@ struct AppiumClientModelTests {
         
         try await mockClient.clickElement(
             session,
-            strategy: .id,
-            selector: "clickable-button",
+            element,
             5
         )
         
@@ -255,8 +261,7 @@ struct AppiumClientModelTests {
         do {
             try await mockClient.clickElement(
                 session,
-                strategy: .id,
-                selector: "error-button",
+                elementError,
                 5
             )
             throw TestError.expectedError
@@ -271,6 +276,8 @@ struct AppiumClientModelTests {
     func sendKeys() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
+        let element: Element! = Element(strategy: .id, selector: .init(wrappedValue: "text-input"))
+        let elementError: Element! = Element(strategy: .id, selector: .init(wrappedValue: "error-input"))
         let mockClient = MockAppiumClient()
         
         // Test successful case
@@ -281,8 +288,7 @@ struct AppiumClientModelTests {
         
         try await mockClient.sendKeys(
             session,
-            strategy: .id,
-            selector: "text-input",
+            element,
             text: "Hello, World!"
         )
         
@@ -295,8 +301,7 @@ struct AppiumClientModelTests {
         do {
             try await mockClient.sendKeys(
                 session,
-                strategy: .id,
-                selector: "error-input",
+                elementError,
                 text: "Test"
             )
             throw TestError.expectedError
