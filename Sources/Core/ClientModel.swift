@@ -72,6 +72,16 @@ public class ClientModel: AppiumClient {
         )
     }
     
+    public func checkElementChecked(
+        _ session: Session,
+        _ element: Element
+    ) async throws -> Bool {
+        return try await Client.checkElementVisibility(
+            session,
+            element
+        )
+    }
+    
     public func executeScript(
         _ session: Session,
         script: String,

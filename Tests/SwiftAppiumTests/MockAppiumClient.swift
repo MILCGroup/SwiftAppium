@@ -76,6 +76,17 @@ class MockAppiumClient: AppiumClient {
         return mockResponses[key] as? Bool ?? false
     }
     
+    func checkElementChecked(
+        _ session: Session,
+        _ element: Element,
+    ) async throws -> Bool {
+        let key = "checkElementChecked_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
+        if let error = mockErrors[key] {
+            throw error
+        }
+        return mockResponses[key] as? Bool ?? false
+    }
+    
     func executeScript(
         _ session: Session,
         script: String,

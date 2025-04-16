@@ -251,6 +251,41 @@ struct AppiumClientModelTests {
         try? await httpClient.shutdown()
     }
     
+    @Test("Check element checked")
+    func checkElementChecked() async throws {
+        let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
+        let session = Session(client: httpClient, id: "test-session-id", platform: .android)
+        let element: Element = Element(.id, .init("visible-element"))
+        let elementHidden: Element = Element(.id, .init("hidden-element"))
+        let mockClient = MockAppiumClient()
+        
+        // Test visible case
+        mockClient.setMockResponse(
+            for: "checkElementChecked_id_visible-element",
+            response: true
+        )
+        
+        let isVisible = try await mockClient.checkElementChecked(
+            session,
+            element
+        )
+        #expect(isVisible)
+        
+        // Test hidden case
+        mockClient.setMockResponse(
+            for: "checkElementChecked_id_hidden-element",
+            response: false
+        )
+        
+        let isHidden = try await mockClient.checkElementChecked(
+            session,
+            elementHidden
+        )
+        #expect(!isHidden)
+        
+        try? await httpClient.shutdown()
+    }
+    
     @Test("Execute script")
     func executeScript() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)

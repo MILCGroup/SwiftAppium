@@ -39,6 +39,11 @@ public protocol AppiumClient {
         _ element: Element
     ) async throws -> Bool
     
+    func checkElementChecked(
+        _ session: Session,
+        _ element: Element
+    ) async throws -> Bool
+    
     func executeScript(
         _ session: Session,
         script: String,
