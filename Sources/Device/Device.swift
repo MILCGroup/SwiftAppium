@@ -113,6 +113,15 @@ public enum Device: Equatable, Sendable {
             return nil
         }
     }
+    
+    public var espressoBuildConfig: String? {
+        switch self {
+        case .Android(_, _, _, _, let espressoBuildConfig, _):
+            return espressoBuildConfig
+        default:
+            return nil
+        }
+    }
 
     public var forceEspressoRebuild: Bool? {
         switch self {
@@ -122,5 +131,4 @@ public enum Device: Equatable, Sendable {
             return nil
         }
     }
-    
 }
