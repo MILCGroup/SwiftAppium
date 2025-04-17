@@ -14,7 +14,7 @@ public enum Device: Equatable, Sendable {
         usePreinstalledWDA: Bool? = false)
     case Android(
         deviceName: String, platformVersion: String, app: String,
-        automationName: String, espressoBuildConfig: String?)
+        automationName: String, espressoBuildConfig: String?, forceEspressoRebuild: Bool?)
     case Browser(
         platformVersion: String, automationName: String, browserName: String)
 
@@ -43,7 +43,7 @@ public enum Device: Equatable, Sendable {
     public var platformVersion: String {
         switch self {
         case .iOS(_, let platformVersion, _, _, _, _, _),
-            .Android(_, let platformVersion, _, _, _),
+            .Android(_, let platformVersion, _, _, _, _),
             .Browser(let platformVersion, _, _):
             return platformVersion
         }
@@ -52,7 +52,7 @@ public enum Device: Equatable, Sendable {
     public var automationName: String {
         switch self {
         case .iOS(_, _, _, _, let automationName, _, _),
-            .Android(_, _, _, let automationName, _),
+            .Android(_, _, _, let automationName, _, _),
             .Browser(_, let automationName, _):
             return automationName
         }
@@ -70,7 +70,7 @@ public enum Device: Equatable, Sendable {
     public var deviceName: String? {
         switch self {
         case .iOS(let deviceName, _, _, _, _, _, _),
-            .Android(let deviceName, _, _, _, _):
+            .Android(let deviceName, _, _, _, _, _):
             return deviceName
         default:
             return nil
@@ -89,7 +89,7 @@ public enum Device: Equatable, Sendable {
     public var app: String? {
         switch self {
         case .iOS(_, _, _, let app, _, _, _),
-            .Android(_, _, let app, _, _):
+            .Android(_, _, let app, _, _, _):
             return app
         default:
             return nil
@@ -114,12 +114,13 @@ public enum Device: Equatable, Sendable {
         }
     }
 
-    public var espressoBuildConfig: String? {
+    public var forceEspressoRebuild: Bool? {
         switch self {
-        case .Android(_, _, _, _, let espressoBuildConfig):
-            return espressoBuildConfig
+        case .Android(_, _, _, _, _, let forceEspressoRebuild):
+            return forceEspressoRebuild
         default:
             return nil
         }
     }
+    
 }
