@@ -12,7 +12,9 @@ public struct Session: Sendable {
     public let id: String
     public let platform: Platform
     public let deviceName: String
-
+    
+    public var elements: [String: Element] = [:]
+    
     public init(client: HTTPClient, id: String, platform: Platform) {
         self.client = client
         self.id = id
