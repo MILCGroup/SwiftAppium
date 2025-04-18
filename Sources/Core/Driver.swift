@@ -7,60 +7,63 @@
 
 import Testing
 
-public enum Device: Equatable, Sendable {
-    case iOS(
+public enum Driver: Equatable, Sendable {
+    case XCUITest(
         deviceName: String, platformVersion: String, udid: String, app: String,
         automationName: String, wdaLocalPort: Int?,
         usePreinstalledWDA: Bool? = false)
-    case Android(
+    case UIAutomator(
+        deviceName: String, platformVersion: String, app: String,
+        automationName: String)
+    case Espresso(
         deviceName: String, platformVersion: String, app: String,
         automationName: String, espressoBuildConfig: String?, forceEspressoRebuild: Bool?)
-    case Browser(
+    case Chromium(
         platformVersion: String, automationName: String, browserName: String)
 
     public var platform: Platform {
         switch self {
-        case .Android:
+        case .UIAutomator, .Espresso:
             .android
-        case .iOS:
+        case .XCUITest:
             .iOS
-        case .Browser:
+        case .Chromium:
             .browser
         }
     }
 
     public var platformName: String {
         switch self {
-        case .iOS:
+        case .XCUITest:
             return "iOS"
-        case .Android:
+        case .UIAutomator, .Espresso:
             return "Android"
-        case .Browser:
+        case .Chromium:
             return "mac"
         }
     }
 
     public var platformVersion: String {
         switch self {
-        case .iOS(_, let platformVersion, _, _, _, _, _),
-            .Android(_, let platformVersion, _, _, _, _),
-            .Browser(let platformVersion, _, _):
+        case .XCUITest(_, let platformVersion, _, _, _, _, _),
+            .UIAutomator(_, let platformVersion, _, _), .Espresso(_, let platformVersion, _, _, _, _),
+            .Chromium(let platformVersion, _, _):
             return platformVersion
         }
     }
 
     public var automationName: String {
         switch self {
-        case .iOS(_, _, _, _, let automationName, _, _),
-            .Android(_, _, _, let automationName, _, _),
-            .Browser(_, let automationName, _):
+        case .XCUITest(_, _, _, _, let automationName, _, _),
+            .UIAutomator(_, _, _, let automationName), .Espresso(_, _, _, let automationName, _, _),
+            .Chromium(_, let automationName, _):
             return automationName
         }
     }
 
     public var browserName: String? {
         switch self {
-        case .Browser(_, _, let browserName):
+        case .Chromium(_, _, let browserName):
             return browserName
         default:
             return nil
@@ -69,8 +72,8 @@ public enum Device: Equatable, Sendable {
 
     public var deviceName: String? {
         switch self {
-        case .iOS(let deviceName, _, _, _, _, _, _),
-            .Android(let deviceName, _, _, _, _, _):
+        case .XCUITest(let deviceName, _, _, _, _, _, _),
+            .UIAutomator(let deviceName, _, _, _), .Espresso(let deviceName, _, _, _, _, _):
             return deviceName
         default:
             return nil
@@ -79,7 +82,7 @@ public enum Device: Equatable, Sendable {
 
     public var udid: String? {
         switch self {
-        case .iOS(_, _, let udid, _, _, _, _):
+        case .XCUITest(_, _, let udid, _, _, _, _):
             return udid
         default:
             return nil
@@ -88,8 +91,8 @@ public enum Device: Equatable, Sendable {
 
     public var app: String? {
         switch self {
-        case .iOS(_, _, _, let app, _, _, _),
-            .Android(_, _, let app, _, _, _):
+        case .XCUITest(_, _, _, let app, _, _, _),
+            .UIAutomator(_, _, let app, _), .Espresso(_, _, let app, _, _, _):
             return app
         default:
             return nil
@@ -98,7 +101,7 @@ public enum Device: Equatable, Sendable {
 
     public var wdaLocalPort: Int? {
         switch self {
-        case .iOS(_, _, _, _, _, let wdaLocalPort, _):
+        case .XCUITest(_, _, _, _, _, let wdaLocalPort, _):
             return wdaLocalPort
         default:
             return nil
@@ -107,7 +110,7 @@ public enum Device: Equatable, Sendable {
 
     public var usePreinstalledWDA: Bool? {
         switch self {
-        case .iOS(_, _, _, _, _, _, let usePreinstalledWDA):
+        case .XCUITest(_, _, _, _, _, _, let usePreinstalledWDA):
             return usePreinstalledWDA
         default:
             return nil
@@ -116,7 +119,7 @@ public enum Device: Equatable, Sendable {
     
     public var espressoBuildConfig: String? {
         switch self {
-        case .Android(_, _, _, _, let espressoBuildConfig, _):
+        case .Espresso(_, _, _, _, let espressoBuildConfig, _):
             return espressoBuildConfig
         default:
             return nil
@@ -125,7 +128,7 @@ public enum Device: Equatable, Sendable {
 
     public var forceEspressoRebuild: Bool? {
         switch self {
-        case .Android(_, _, _, _, _, let forceEspressoRebuild):
+        case .Espresso(_, _, _, _, _, let forceEspressoRebuild):
             return forceEspressoRebuild
         default:
             return nil

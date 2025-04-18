@@ -1,7 +1,7 @@
 import Foundation
 @testable import SwiftAppium
 
-class MockAppiumClient: AppiumClient {
+class MockAppium: AppiumClient, AppiumSession, AppiumElement {
     var mockResponses: [String: Any] = [:]
     var mockErrors: [String: Error] = [:]
     var callCounts: [String: Int] = [:]

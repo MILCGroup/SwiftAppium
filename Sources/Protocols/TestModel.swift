@@ -7,4 +7,5 @@
 
 public protocol TestModel: Normalizable {
     var clientModel: ClientModel { get }
+    var sessionModel: SessionModel { get }
 }

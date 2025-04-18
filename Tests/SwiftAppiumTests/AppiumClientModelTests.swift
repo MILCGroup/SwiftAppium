@@ -11,7 +11,7 @@ struct AppiumClientModelTests {
     private var session: Session?
     private var element: Element?
     private var client: ClientModel?
-    private var mockClient: MockAppiumClient?
+    private var mockClient: MockAppium?
     private var httpClient: HTTPClient?
     
     @Test("Setup and teardown")
@@ -21,7 +21,7 @@ struct AppiumClientModelTests {
 //        let client: ClientModel? = ClientModel()
         let selector: Selector! = .init("test-button")
         let element: Element? = Element(.id, selector)
-        let mockClient: MockAppiumClient! = MockAppiumClient()
+        let mockClient: MockAppium! = MockAppium()
         mockClient.clearMocks()
         
         #expect(session != nil)
@@ -39,7 +39,7 @@ struct AppiumClientModelTests {
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
         let element = Element(.id, .init("test-button"))
         let elementTimedOut = Element(.id, .init("timeout-button"))
-        let mockClient = MockAppiumClient()
+        let mockClient = MockAppium()
         
         // Test successful case
         mockClient.setMockResponse(
@@ -81,7 +81,7 @@ struct AppiumClientModelTests {
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
         let element: Element! = Element(.id, .init("test-input"))
         let elementNonExistent: Element! = Element(.id, .init("non-existent"))
-        let mockClient = MockAppiumClient()
+        let mockClient = MockAppium()
         
         // Test successful case
         mockClient.setMockResponse(
@@ -119,7 +119,7 @@ struct AppiumClientModelTests {
     func containsInHierarchy() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
-        let mockClient = MockAppiumClient()
+        let mockClient = MockAppium()
         
         // Test successful case
         mockClient.setMockResponse(
@@ -152,7 +152,7 @@ struct AppiumClientModelTests {
     func containsMultipleInHierarchy() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
-        let mockClient = MockAppiumClient()
+        let mockClient = MockAppium()
         
         // Test successful case
         mockClient.setMockResponse(
@@ -187,7 +187,7 @@ struct AppiumClientModelTests {
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
         let element: Element = Element(.id, .init("visible-element"))
         let elementHidden: Element = Element(.id, .init("hidden-element"))
-        let mockClient = MockAppiumClient()
+        let mockClient = MockAppium()
         
         // Test visible case
         mockClient.setMockResponse(
@@ -222,7 +222,7 @@ struct AppiumClientModelTests {
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
         let element: Element = Element(.id, .init("visible-element"))
         let elementHidden: Element = Element(.id, .init("hidden-element"))
-        let mockClient = MockAppiumClient()
+        let mockClient = MockAppium()
         
         // Test visible case
         mockClient.setMockResponse(
@@ -257,7 +257,7 @@ struct AppiumClientModelTests {
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
         let element: Element = Element(.id, .init("visible-element"))
         let elementHidden: Element = Element(.id, .init("hidden-element"))
-        let mockClient = MockAppiumClient()
+        let mockClient = MockAppium()
         
         // Test visible case
         mockClient.setMockResponse(
@@ -290,7 +290,7 @@ struct AppiumClientModelTests {
     func executeScript() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
-        let mockClient = MockAppiumClient()
+        let mockClient = MockAppium()
         
         // Test successful case
         let expectedResult = ["status": "success"]
@@ -314,7 +314,7 @@ struct AppiumClientModelTests {
     func hideKeyboard() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
-        let mockClient = MockAppiumClient()
+        let mockClient = MockAppium()
         
         // Test successful case
         try await mockClient.hideKeyboard(session)
@@ -341,7 +341,7 @@ struct AppiumClientModelTests {
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
         let element: Element! = Element(.id, .init("clickable-button"))
         let elementError: Element! = Element(.id, .init("error-button"))
-        let mockClient = MockAppiumClient()
+        let mockClient = MockAppium()
         
         // Test successful case
         mockClient.setMockResponse(
@@ -381,7 +381,7 @@ struct AppiumClientModelTests {
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
         let element: Element! = Element(.id, .init("clickable-button"))
         let elementError: Element! = Element(.id, .init("error-button"))
-        let mockClient = MockAppiumClient()
+        let mockClient = MockAppium()
         
         // Test successful case
         mockClient.setMockResponse(
@@ -414,7 +414,7 @@ struct AppiumClientModelTests {
         let session = Session(client: httpClient, id: "test-session-id", platform: .android)
         let element: Element! = Element(.id, .init("text-input"))
         let elementError: Element! = Element(.id, .init("error-input"))
-        let mockClient = MockAppiumClient()
+        let mockClient = MockAppium()
         
         // Test successful case
         mockClient.setMockResponse(
