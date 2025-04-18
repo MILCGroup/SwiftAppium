@@ -20,7 +20,7 @@ public struct Element: Sendable {
     
     public static func select(
         _ session: Session,
-        _ element: Element,
+        _ element: Self,
         timeout: TimeInterval
     ) async throws -> String {
         let startTime = Date()
@@ -52,7 +52,7 @@ public struct Element: Sendable {
    
     public static func selectUnsafe(
         _ session: Session,
-        _ element: Element
+        _ element: Self
     ) async throws -> String? {
         let requestBody: Data
         do {
@@ -119,7 +119,7 @@ public struct Element: Sendable {
     
     public static func value(
          _ session: Session,
-         _ element: Element
+         _ element: Self
     ) async throws -> Double {
         appiumLogger.info(
             "Checking value of element with strategy: \(element.strategy.rawValue) and selector: \(element.selector.wrappedValue) in session: \(session.id)"
@@ -215,7 +215,7 @@ public struct Element: Sendable {
      
     public static func isVisibility(
         _ session: Session,
-        _ element: Element
+        _ element: Self
     ) async throws -> Bool {
         appiumLogger.info(
             "Checking visibility of element with strategy: \(element.strategy.rawValue) and selector: \(element.selector.wrappedValue) in session: \(session.id)"
@@ -290,7 +290,7 @@ public struct Element: Sendable {
     
     public static func click(
         _ session: Session,
-        _ element: Element,
+        _ element: Self,
         _ wait: TimeInterval = 5
     ) async throws {
         let elementId = try await select(
@@ -318,7 +318,7 @@ public struct Element: Sendable {
     
     public static func clickUnsafe(
         _ session: Session,
-        _ element: Element,
+        _ element: Self,
         _ wait: TimeInterval = 5
     ) async throws
     {
@@ -346,7 +346,7 @@ public struct Element: Sendable {
     
     public static func type(
         _ session: Session,
-        _ element: Element,
+        _ element: Self,
         text: String
     ) async throws {
         let elementId: String
@@ -394,7 +394,7 @@ public struct Element: Sendable {
 
     public static func isChecked(
         _ session: Session,
-        _ element: Element
+        _ element: Self
     ) async throws -> Bool {
         appiumLogger.info(
             "Checking visibility of element with strategy: \(element.strategy.rawValue) and selector: \(element.selector.wrappedValue) in session: \(session.id)"

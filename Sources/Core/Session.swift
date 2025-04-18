@@ -30,7 +30,7 @@ public struct Session: Sendable {
     }
     
     public static func executeScript(
-        _ session: Session,
+        _ session: Self,
         script: String,
         args: [Any]
     ) async throws -> Any? {
@@ -82,7 +82,7 @@ public struct Session: Sendable {
         return nil
     }
 
-    public static func hideKeyboard(_ session: Session) async throws {
+    public static func hideKeyboard(_ session: Self) async throws {
         appiumLogger.info(
             "Attempting to hide keyboard in session: \(session.id)")
         
