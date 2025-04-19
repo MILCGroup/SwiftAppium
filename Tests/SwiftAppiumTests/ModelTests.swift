@@ -6,8 +6,8 @@ enum TestError: Error {
     case expectedError
 }
 
-@Suite("AppiumClientModel Tests")
-struct AppiumClientModelTests {
+@Suite("Model Tests")
+struct ModelTests {
     private var session: Session?
     private var element: Element?
     private var client: ClientModel?
@@ -18,14 +18,12 @@ struct AppiumClientModelTests {
     func setupAndTeardown() async throws {
         let httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
         let session: Session! = Session(client: httpClient, id: "test-session-id", platform: .android)
-//        let client: ClientModel? = ClientModel()
         let selector: Selector! = .init("test-button")
         let element: Element? = Element(.id, selector)
         let mockClient: MockAppium! = MockAppium()
         mockClient.clearMocks()
         
         #expect(session != nil)
-//        #expect(client != nil)
         #expect(mockClient != nil)
         #expect(selector != nil)
         #expect(element != nil)
