@@ -218,7 +218,7 @@ public struct Element: Sendable {
         }
     }
      
-    public static func isVisibility(
+    public static func isVisible(
         _ session: Session,
         _ element: Self
     ) async throws -> Bool {
@@ -471,7 +471,7 @@ public struct Element: Sendable {
     
     public func select(
         _ session: Session,
-        timeout: TimeInterval
+        _ timeout: TimeInterval = 3
     ) async throws -> String {
         let startTime = Date()
         
@@ -575,7 +575,7 @@ public struct Element: Sendable {
         let elementId: String
         do {
             elementId = try await select(
-                session, timeout: 35)
+                session, 35)
         } catch {
             appiumLogger.error("Failed to find element: \(error)")
             throw error
@@ -670,7 +670,7 @@ public struct Element: Sendable {
         let elementId: String
         do {
             elementId = try await select(
-                session, timeout: 3)
+                session)
         } catch {
             appiumLogger.error("Failed to find element: \(error)")
             throw error
@@ -739,7 +739,7 @@ public struct Element: Sendable {
         _ wait: TimeInterval = 5
     ) async throws {
         let elementId = try await select(
-            session, timeout: wait)
+            session, wait)
 
         appiumLogger.info(
             "Clicking element: \(elementId) in session: \(session.id)")
@@ -767,7 +767,7 @@ public struct Element: Sendable {
     ) async throws
     {
         let elementId = try await select(
-            session, timeout: wait)
+            session, wait)
 
         appiumLogger.info(
             "Clicking element: \(elementId) in session: \(session.id)")
@@ -795,7 +795,7 @@ public struct Element: Sendable {
         let elementId: String
         do {
             elementId = try await select(
-                session, timeout: 3)
+                session)
         } catch {
             appiumLogger.error("Failed to find element: \(error)")
             throw error
@@ -844,10 +844,7 @@ public struct Element: Sendable {
 
         let elementId: String
         do {
-            elementId = try await select(
-                session,
-                timeout: 3
-            )
+            elementId = try await select(session)
         } catch {
             appiumLogger.error("Failed to find element: \(error)")
             throw error

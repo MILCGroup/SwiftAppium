@@ -46,7 +46,7 @@ public class ElementModel: AppiumElement {
         _ session: Session,
         _ element: Element
     ) async throws -> Bool {
-        return try await Element.isVisibility(
+        return try await Element.isVisible(
             session,
             element
         )
