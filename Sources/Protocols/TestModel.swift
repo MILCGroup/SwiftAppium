@@ -94,9 +94,6 @@ public class TestModel: @unchecked Sendable, Normalizable {
             } else if device.platformName == Platform.iOS.rawValue {
                 expectedRequest =
                     "{\"capabilities\":{\"alwaysMatch\":{\"appium:app\":\"\(device.app!)\",\"appium:automationName\":\"XCUITest\",\"appium:deviceName\":\"\(device.deviceName!)\",\"appium:newCommandTimeout\":3600,\"appium:platformVersion\":\"\(device.platformVersion)\",\"appium:udid\":\"\(device.udid!)\",\"appium:usePreinstalledWDA\":\(device.usePreinstalledWDA!),\"appium:wdaLocalPort\":\(device.wdaLocalPort!),\"platformName\":\"iOS\"}}}"
-            } else if device.platformName == Platform.android.rawValue {
-                expectedRequest =
-                    "{\"capabilities\":{\"alwaysMatch\":{\"appium:app\":\"\(device.app!)\",\"appium:automationName\":\"\(device.automationName)\",\"appium:deviceName\":\"\(device.deviceName!)\",\"appium:newCommandTimeout\":3600,\"appium:platformVersion\":\"\(device.platformVersion)\",\"platformName\":\"Android\"}}}"
             } else {
                 expectedRequest = normalizedData
             }
