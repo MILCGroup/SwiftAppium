@@ -10,7 +10,7 @@ import Observation
 
 @Observable
 public class Client: @unchecked Sendable {
-    let client: HTTPClient
+    public let client: HTTPClient
     
     public init() {
         self.client = HTTPClient(eventLoopGroupProvider: .singleton)
