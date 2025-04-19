@@ -56,7 +56,8 @@ extension Normalizable {
             }
 
             value["capabilities"] = capabilities
-            // Replace dynamic sessionId
+            value["browserVersion"] = "[BROWSER_VERSION]"
+            value["chromedriverVersion"] = "[CHROMEDRIVER_VERSION]"
             value["sessionId"] = "[SESSION_ID]"
             json?["value"] = value
         }

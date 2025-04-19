@@ -5,4 +5,14 @@
 //  See LICENSE for information
 //
 
-public struct Client {}
+import AsyncHTTPClient
+import Observation
+
+@Observable
+public class Client: @unchecked Sendable {
+    let client: HTTPClient
+    
+    public init() {
+        self.client = HTTPClient(eventLoopGroupProvider: .singleton)
+    }
+}
