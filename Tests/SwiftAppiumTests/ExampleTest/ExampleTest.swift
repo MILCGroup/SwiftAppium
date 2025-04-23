@@ -4,7 +4,7 @@ import Foundation
 import SwiftAppium
 
 public class ExampleTest: @unchecked Sendable, Normalizable {
-    public let client: Client
+    public let client: Client!
     public var session: Session!
     public var device: Driver
     

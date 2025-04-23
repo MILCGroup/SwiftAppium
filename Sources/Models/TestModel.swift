@@ -12,7 +12,7 @@ import Observation
 
 @Observable
 public class TestModel: @unchecked Sendable, Normalizable {
-    public let client: Client
+    public let client: Client!
     public var session: Session!
     public var device: Driver
     
