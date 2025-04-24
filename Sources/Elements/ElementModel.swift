@@ -21,15 +21,6 @@ public class ElementModel: AppiumElement {
         )
     }
     
-    public func findElement(
-        _ session: Session,
-        _ element: Element
-    ) async throws -> String? {
-        return try await session.selectUnsafe(
-            element
-        )
-    }
-    
     public func elementValue(
         _ session: Session,
         _ element: Element
@@ -64,17 +55,6 @@ public class ElementModel: AppiumElement {
         _ wait: TimeInterval = 5
     ) async throws {
         try await session.click(
-            element,
-            wait
-        )
-    }
-    
-    public func clickUnsafeElement(
-        _ session: Session,
-        _ element: Element,
-        _ wait: TimeInterval = 5
-    ) async throws {
-        try await session.clickUnsafe(
             element,
             wait
         )

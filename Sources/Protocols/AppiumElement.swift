@@ -14,11 +14,6 @@ public protocol AppiumElement {
         timeout: TimeInterval
     ) async throws -> String
     
-    func findElement(
-        _ session: Session,
-        _ element: Element
-    ) async throws -> String?
-    
     func elementValue(
         _ session: Session,
         _ element: Element
@@ -35,12 +30,6 @@ public protocol AppiumElement {
     ) async throws -> Bool
     
     func clickElement(
-        _ session: Session,
-        _ element: Element,
-        _ wait: TimeInterval
-    ) async throws
-    
-    func clickUnsafeElement(
         _ session: Session,
         _ element: Element,
         _ wait: TimeInterval
