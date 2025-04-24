@@ -15,10 +15,9 @@ public class ElementModel: AppiumElement {
         _ element: Element,
         timeout: TimeInterval
     ) async throws -> String {
-        return try await Element.select(
-            session,
+        return try await session.select(
             element,
-            timeout: timeout
+            timeout
         )
     }
     
@@ -26,8 +25,7 @@ public class ElementModel: AppiumElement {
         _ session: Session,
         _ element: Element
     ) async throws -> String? {
-        return try await Element.selectUnsafe(
-            session,
+        return try await session.selectUnsafe(
             element
         )
     }
@@ -36,8 +34,7 @@ public class ElementModel: AppiumElement {
         _ session: Session,
         _ element: Element
     ) async throws -> Double {
-        return try await Element.value(
-            session,
+        return try await session.value(
             element
         )
     }
@@ -46,9 +43,8 @@ public class ElementModel: AppiumElement {
         _ session: Session,
         _ element: Element
     ) async throws -> Bool {
-        return try await Element.isVisible(
-            session,
-            element
+        return try await element.isVisible(
+            session
         )
     }
     
@@ -56,9 +52,8 @@ public class ElementModel: AppiumElement {
         _ session: Session,
         _ element: Element
     ) async throws -> Bool {
-        return try await Element.isChecked(
-            session,
-            element
+        return try await element.isChecked(
+            session
         )
     }
     
@@ -68,8 +63,7 @@ public class ElementModel: AppiumElement {
         _ element: Element,
         _ wait: TimeInterval = 5
     ) async throws {
-        try await Element.click(
-            session,
+        try await session.click(
             element,
             wait
         )
@@ -80,8 +74,7 @@ public class ElementModel: AppiumElement {
         _ element: Element,
         _ wait: TimeInterval = 5
     ) async throws {
-        try await Element.clickUnsafe(
-            session,
+        try await session.clickUnsafe(
             element,
             wait
         )
@@ -92,8 +85,7 @@ public class ElementModel: AppiumElement {
         _ element: Element,
         text: String
     ) async throws {
-        try await Element.type(
-            session,
+        try await session.type(
             element,
             text: text
         )
