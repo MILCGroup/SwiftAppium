@@ -150,6 +150,32 @@ public struct Session: Sendable {
         }
     }
     
+    public func clickUnsafe(
+        _ element: Element,
+        _ wait: TimeInterval = 5
+    ) async throws
+    {
+        let elementId = try await select(element, wait)
+
+        appiumLogger.info(
+            "Clicking element: \(elementId) in session: \(id)")
+        var request = try HTTPClient.Request(
+            url: API.click(elementId, self.id).path,
+            method: .POST)
+        request.headers.add(name: "Content-Type", value: "application/json")
+
+        do {
+            let response = try await client.execute(request: request)
+                .get()
+            guard response.status == .ok else {
+                throw AppiumError.invalidResponse(
+                    "Failed to click element: HTTP \(response.status)")
+            }
+        } catch {
+            throw AppiumError.invalidResponse("Failed to click element: \(error)")
+        }
+    }
+    
     public func type(
         _ element: Element,
         text: String,
