@@ -15,12 +15,10 @@ public class TestModel: @unchecked Sendable, Normalizable {
     public let client: Client!
     public var session: Session!
     public var device: Driver
-    public var api: API
     
-    public init(_ device: Driver, _ url: API = API("https://localhost:4723")) async throws {
+    public init(_ device: Driver) async throws {
         self.client = Client()
         self.device = device
-        self.api = url
         self.session = try await sessionCall(client: client.client)
     }
     
