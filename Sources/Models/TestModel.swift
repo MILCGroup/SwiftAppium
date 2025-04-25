@@ -24,6 +24,10 @@ public class TestModel: @unchecked Sendable, Normalizable {
         self.session = try await sessionCall(client: client.client)
     }
     
+    public var clientModel: ClientModel {
+        return ClientModel()
+    }
+    
     public var sessionModel: SessionModel {
         return SessionModel()
     }
