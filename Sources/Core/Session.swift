@@ -119,7 +119,9 @@ public struct Session: Sendable {
         _ wait: TimeInterval = 5,
         file: String = #file,
         line: UInt = #line,
-        function: StaticString = #function
+        function: StaticString = #function,
+        andWaitFor: Element? = nil,
+        date: Date = Date()
     ) async throws {
         let fileId = "\(function) in \(file):\(line)"
         let elementId = try await select(element, wait, file: file, line: line, function: function)
@@ -132,9 +134,21 @@ public struct Session: Sendable {
         do {
             let response = try await client.execute(request: request)
                 .get()
-            guard response.status == .ok else {
+            switch response.status {
+            case .ok:
+                break
+            case .badRequest:
+                print("\(fileId) -- Failed to click element \(elementId): HTTP \(response.status)")
+                try await Wait.sleep(for: 1)
+                if Date().timeIntervalSince(date) < wait {
+                    try await click(element, date: date)
+                } else {
+                    throw AppiumError.timeoutError("Timed out waiting to click element \(elementId)")
+                }
+            default:
                 throw AppiumError.invalidResponse(
                     "\(fileId) -- Failed to click element \(elementId): HTTP \(response.status)")
+                
             }
         } catch {
             // Try one more time

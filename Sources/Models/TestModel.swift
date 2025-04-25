@@ -279,18 +279,21 @@ public class TestModel: @unchecked Sendable, Normalizable {
     }
     
     func findSessions(
-        client: HTTPClient
+        client: HTTPClient,
     ) async throws -> (
         [AndroidResponse.ResponseValue],
         [iOSResponse.Value],
         [WebResponse.Session]
     ) {
+        
         appiumLogger.info("Requesting active sessions...")
 
         var request = try HTTPClient.Request(
             url: API.sessions.path, method: .GET)
-        request.headers.add(name: "Content-Type", value: "application/json")
-        let response = try await client.execute(request: request).get()
+        
+            request.headers.add(name: "Content-Type", value: "application/json")
+        
+        let response = try await client.execute(request: request, deadline: .uptimeNanoseconds(5 * NSEC_PER_SEC)).get()
         appiumLogger.info("Received response with status: \(response.status)")
         guard let byteBuffer = response.body else {
             throw NSError(
