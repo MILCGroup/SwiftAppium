@@ -26,18 +26,16 @@ public enum API {
     case text(String, String)
     case displayed(String, String)
 
-    public static let serverURL = "http://localhost:4723"
-
     private func path(for sessionId: String, additional: String = "") -> String {
-        return "\(API.serverURL)/session/\(sessionId)\(additional)"
+        return "\(Appium.serverURL)/session/\(sessionId)\(additional)"
     }
 
     public var path: String {
         switch self {
         case .sessions:
-            return "\(API.serverURL)/sessions"
+            return "\(Appium.serverURL)/sessions"
         case .status:
-            return "\(API.serverURL)/status"
+            return "\(Appium.serverURL)/status"
         case .session(let sessionId):
             return path(for: sessionId)
         case .source(let sessionId):

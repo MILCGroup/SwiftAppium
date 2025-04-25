@@ -103,8 +103,8 @@ public class TestModel: @unchecked Sendable, Normalizable {
             } catch {
                 try await client.shutdown()
             }
-            let url = "\(API.serverURL)/session"
-            let expectedURL = "http://localhost:4723/session"
+            let url = "\(Appium.serverURL)/session"
+            let expectedURL = "\(Appium.serverURL)/session"
             do {
                 try #require(url == expectedURL)
             } catch {
