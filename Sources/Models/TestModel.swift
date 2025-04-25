@@ -290,10 +290,9 @@ public class TestModel: @unchecked Sendable, Normalizable {
 
         var request = try HTTPClient.Request(
             url: API.sessions.path, method: .GET)
-        
             request.headers.add(name: "Content-Type", value: "application/json")
-        
-        let response = try await client.execute(request: request, deadline: .uptimeNanoseconds(5 * NSEC_PER_SEC)).get()
+
+        let response = try await client.execute(request: request).get()
         appiumLogger.info("Received response with status: \(response.status)")
         guard let byteBuffer = response.body else {
             throw NSError(
