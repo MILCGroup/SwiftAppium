@@ -103,7 +103,7 @@ public class ExampleTest: @unchecked Sendable, Normalizable {
                 try await client.shutdown()
             }
             let url = "\(API.serverURL)/session"
-            let expectedURL = "http://localhost:4723/session"
+            let expectedURL = "\(API.serverURL)/session"
             do {
                 try #require(url == expectedURL)
             } catch {
@@ -287,7 +287,7 @@ public class ExampleTest: @unchecked Sendable, Normalizable {
         appiumLogger.info("Requesting active sessions...")
 
         var request = try HTTPClient.Request(
-            url: API.sessions.path, method: .GET)
+            url: API.sessions(), method: .GET)
         request.headers.add(name: "Content-Type", value: "application/json")
         let response = try await client.execute(request: request).get()
         appiumLogger.info("Received response with status: \(response.status)")
@@ -363,7 +363,7 @@ public class ExampleTest: @unchecked Sendable, Normalizable {
             let expectedRequest = "{\"url\":\"\(url)\"}"
             #expect(normalizedData == expectedRequest)
 
-            let url = API.url(session.id).path
+            let url = API.url(session.id)
             let expectedURL = "\(API.serverURL)/session/\(session.id)/url"
             #expect(url == expectedURL)
 
@@ -379,7 +379,7 @@ public class ExampleTest: @unchecked Sendable, Normalizable {
     public func getCurrentUrl(
     ) async throws -> String {
         let request = try HTTPClient.Request(
-            url: API.url(session.id).path,
+            url: API.url(session.id),
             method: .GET
         )
 

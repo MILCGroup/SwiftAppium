@@ -15,15 +15,13 @@ public class TestModel: @unchecked Sendable, Normalizable {
     public let client: Client!
     public var session: Session!
     public var device: Driver
+    public var api: API
     
-    public init(_ device: Driver) async throws {
+    public init(_ device: Driver, _ url: API = API("https://localhost:4723")) async throws {
         self.client = Client()
         self.device = device
+        self.api = url
         self.session = try await sessionCall(client: client.client)
-    }
-    
-    public var clientModel: ClientModel {
-        return ClientModel()
     }
     
     public var sessionModel: SessionModel {
@@ -103,8 +101,8 @@ public class TestModel: @unchecked Sendable, Normalizable {
             } catch {
                 try await client.shutdown()
             }
-            let url = "\(Appium.serverURL)/session"
-            let expectedURL = "\(Appium.serverURL)/session"
+            let url = "\(API.serverURL)/session"
+            let expectedURL = "\(API.serverURL)/session"
             do {
                 try #require(url == expectedURL)
             } catch {
@@ -289,7 +287,7 @@ public class TestModel: @unchecked Sendable, Normalizable {
         appiumLogger.info("Requesting active sessions...")
 
         var request = try HTTPClient.Request(
-            url: API.sessions.path, method: .GET)
+            url: API.sessions(), method: .GET)
             request.headers.add(name: "Content-Type", value: "application/json")
 
         let response = try await client.execute(request: request).get()

@@ -54,7 +54,7 @@ public struct Session: Sendable {
         
         var request: HTTPClient.Request
         request = try HTTPClient.Request(
-            url: API.execute(session.id).path, method: .POST
+            url: API.execute(session.id), method: .POST
         )
         request.headers.add(name: "Content-Type", value: "application/json")
         request.body = .data(requestData)
@@ -91,7 +91,7 @@ public struct Session: Sendable {
         var request: HTTPClient.Request
         
         request = try HTTPClient.Request(
-            url: API.hideKeyboard(session.id).path, method: .POST
+            url: API.hideKeyboard(session.id), method: .POST
         )
         
         request.headers.add(name: "Content-Type", value: "application/json")
@@ -127,7 +127,7 @@ public struct Session: Sendable {
         let elementId = try await select(element, wait, file: file, line: line, function: function)
         
         var request = try HTTPClient.Request(
-            url: API.click(elementId, id).path,
+            url: API.click(elementId, id),
             method: .POST)
         request.headers.add(name: "Content-Type", value: "application/json")
         
@@ -190,7 +190,7 @@ public struct Session: Sendable {
         }
         
         var request = try HTTPClient.Request(
-            url: API.value(elementId, id).path,
+            url: API.value(elementId, id),
             method: .POST)
         request.headers.add(name: "Content-Type", value: "application/json")
         request.body = .data(requestBody)
@@ -253,7 +253,7 @@ public struct Session: Sendable {
         var request: HTTPClient.Request
         do {
             request = try HTTPClient.Request(
-                url: API.element(id).path, method: .POST
+                url: API.element(id), method: .POST
             )
         } catch {
             appiumLogger.error("Failed to create request: \(error)")
@@ -308,7 +308,7 @@ public struct Session: Sendable {
         while Date().timeIntervalSince(startTime) < timeout {
             do {
                 let request = try HTTPClient.Request(
-                    url: API.source(id).path,
+                    url: API.source(id),
                     method: .GET
                 )
                 let response = try await client.execute(request: request)
@@ -349,7 +349,7 @@ public struct Session: Sendable {
         while Date().timeIntervalSince(startTime) < timeout {
             do {
                 let request = try HTTPClient.Request(
-                    url: API.source(id).path,
+                    url: API.source(id),
                     method: .GET
                 )
                 let response = try await client.execute(request: request)
@@ -390,7 +390,7 @@ public struct Session: Sendable {
         while Date().timeIntervalSince(startTime) < timeout {
             do {
                 let request = try HTTPClient.Request(
-                    url: API.source(id).path,
+                    url: API.source(id),
                     method: .GET
                 )
                 let response = try await client.execute(request: request)
@@ -439,7 +439,7 @@ public struct Session: Sendable {
         }
 
         let request = try HTTPClient.Request(
-            url: API.displayed(elementId, id).path,
+            url: API.displayed(elementId, id),
             method: .GET
         )
 
@@ -509,7 +509,7 @@ public struct Session: Sendable {
         let request: HTTPClient.Request
         do {
             request = try HTTPClient.Request(
-                url: API.attributeValue(elementId, id).path,
+                url: API.attributeValue(elementId, id),
                 method: .GET
             )
         } catch {
@@ -605,7 +605,7 @@ public struct Session: Sendable {
         do {
             request = try HTTPClient.Request(
                 url:
-                    API.displayed(elementId, id).path,
+                    API.displayed(elementId, id),
                 method: .GET
             )
         } catch {

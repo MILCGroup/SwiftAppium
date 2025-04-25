@@ -15,7 +15,7 @@ extension Client {
     ) async throws -> Bool {
         do {
             let request = try HTTPClient.Request(
-                url: API.source(session.id).path,
+                url: API.source(session.id),
                 method: .GET
             )
             let response = try await session.client.execute(request: request)
@@ -61,7 +61,7 @@ extension Client {
     ) async throws -> Bool {
         do {
             let request = try HTTPClient.Request(
-                url: API.source(session.id).path,
+                url: API.source(session.id),
                 method: .GET
             )
             let response = try await session.client.execute(request: request)
