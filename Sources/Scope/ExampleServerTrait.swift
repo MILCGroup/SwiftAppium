@@ -18,7 +18,7 @@ public extension Trait where Self == SessionServerTrait {
 }
 
 public struct SessionServerTrait: SuiteTrait, TestScoping {
-    let serverURL: String
+    public let serverURL: String
 
     public init(serverURL: String = "https://localhost:4723") {
         self.serverURL = serverURL
