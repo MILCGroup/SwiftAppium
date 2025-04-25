@@ -8,9 +8,9 @@
 /// API Enpoints for Appium Server
 /// https://github.com/appium/appium/blob/master/packages/base-driver/lib/protocol/routes.js
 public struct API: Sendable {
-    nonisolated(unsafe) public static var serverURL: String = "https://localhost:4723"
+    nonisolated(unsafe) public static var serverURL: String = "http://localhost:4723"
 
-    public init(_ serverURL: String = "https://localhost:4723") {
+    public init(_ serverURL: String = "http://localhost:4723") {
         API.serverURL = serverURL
     }
     
