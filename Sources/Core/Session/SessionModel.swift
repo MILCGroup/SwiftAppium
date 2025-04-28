@@ -326,6 +326,15 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
         return try await session.hierarchyContains(text, timeout: timeout)
     }
     
+    public func containsMultipleInHierarchy(
+        contains times: Int, _ text: String,
+        timeout: TimeInterval = 5
+    ) async throws -> Bool {
+        return try await session.containsMultipleInHierarchy(
+            contains: times, text, timeout: timeout
+        )
+    }
+    
     public func hierarchyDoesNotContain(
         _ text: String,
         timeout: TimeInterval = 5

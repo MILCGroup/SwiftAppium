@@ -40,6 +40,10 @@ public protocol AppiumSession: Sendable {
         _ text: String,
         timeout: TimeInterval
     ) async throws -> Bool
+    func containsMultipleInHierarchy(
+        contains times: Int, _ text: String,
+        timeout: TimeInterval
+    ) async throws -> Bool
     func hierarchyDoesNotContain(
         _ text: String,
         timeout: TimeInterval

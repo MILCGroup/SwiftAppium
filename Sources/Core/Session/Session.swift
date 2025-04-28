@@ -5,6 +5,7 @@
 //  See LICENSE for information
 //
 import Foundation
+import NIOHTTP1
 import AsyncHTTPClient
 
 public struct Session: Sendable {
@@ -22,98 +23,118 @@ public struct Session: Sendable {
         self.deviceName = ""
     }
 
-    public init(
-        client: HTTPClient, id: String, driver: Driver, deviceName: String?
-    ) {
+    public init(client: HTTPClient, id: String, driver: Driver, deviceName: String?) {
         self.client = client
         self.id = id
         self.platform = driver.platform
         self.deviceName = driver.deviceName ?? ""
     }
-    
-    public static func executeScript(
-        _ session: Self,
-        script: String,
-        args: [Any]
-    ) async throws -> Any? {
-        appiumLogger.info("Executing script in session: \(session.id)")
-        
-        let requestBody: [String: Any] = [
-            "script": script,
-            "args": args,
-        ]
-        
-        let requestData: Data
-        do {
-            requestData = try JSONSerialization.data(
-                withJSONObject: requestBody, options: [])
-        } catch {
-            throw AppiumError.encodingError(
-                "Failed to encode request body for execute script")
-        }
-        
-        var request: HTTPClient.Request
-        request = try HTTPClient.Request(
-            url: API.execute(session.id), method: .POST
-        )
+
+    // MARK: - Helper Functions
+
+    private func makeRequest(url: URL, method: HTTPMethod, body: Data? = nil) throws -> HTTPClient.Request {
+        var request = try HTTPClient.Request(url: url, method: method)
         request.headers.add(name: "Content-Type", value: "application/json")
-        request.body = .data(requestData)
-        
+        if let body = body {
+            request.body = .data(body)
+        }
+        return request
+    }
+
+    private func executeRequest(_ request: HTTPClient.Request, description: String) async throws -> HTTPClient.Response {
         do {
-            let response = try await session.client.execute(request: request)
-                .get()
-            if response.status == .ok {
-                appiumLogger.info("Script executed successfully.")
-                if let responseData = response.body {
-                    let jsonResponse =
-                    try JSONSerialization.jsonObject(
-                        with: responseData, options: []) as? [String: Any]
-                    return jsonResponse?["value"]
-                }
-            } else {
-                appiumLogger.error(
-                    "Failed to execute script. Status: \(response.status)")
-                throw AppiumError.invalidResponse(
-                    "Failed to execute script")
-            }
+            return try await client.execute(request: request).get()
         } catch {
-            appiumLogger.error("Error while executing script: \(error)")
-            throw AppiumError.invalidResponse(
-                "Failed to execute script: \(error.localizedDescription)")
+            appiumLogger.error("Failed \(description): \(error.localizedDescription)")
+            throw error
+        }
+    }
+
+    private func encodeJSON<T: Encodable>(_ object: T) throws -> Data {
+        try JSONEncoder().encode(object)
+    }
+
+    private func decodeJSON<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        try JSONDecoder().decode(type, from: data)
+    }
+
+    private func validateOKResponse(_ response: HTTPClient.Response, errorMessage: String) throws {
+        guard response.status == .ok else {
+            throw AppiumError.invalidResponse("\(errorMessage): HTTP \(response.status)")
+        }
+    }
+
+    private func waitForHierarchy(timeout: TimeInterval, matchCondition: (String) -> Bool) async throws -> Bool {
+        let startTime = Date()
+        while Date().timeIntervalSince(startTime) < timeout {
+            do {
+                let request = try makeRequest(url: API.source(id), method: .GET)
+                let response = try await executeRequest(request, description: "fetching hierarchy")
+                try validateOKResponse(response, errorMessage: "Failed to get hierarchy")
+
+                if let body = response.body,
+                   let hierarchy = body.getString(at: 0, length: body.readableBytes),
+                   matchCondition(hierarchy) {
+                    return true
+                }
+            } catch {
+                try await Wait.sleep(for: 1)
+            }
+        }
+        return false
+    }
+
+    private func fetchElementId(_ element: Element, timeout: TimeInterval = 5) async throws -> String {
+        let startTime = Date()
+        while Date().timeIntervalSince(startTime) < timeout {
+            do {
+                let body = try encodeJSON(["using": element.strategy.rawValue, "value": element.selector.wrappedValue])
+                let request = try makeRequest(url: API.element(id), method: .POST, body: body)
+                let response = try await executeRequest(request, description: "finding element")
+                try validateOKResponse(response, errorMessage: "Failed to find element")
+
+                guard let responseBody = response.body,
+                      let responseString = responseBody.getString(at: 0, length: responseBody.readableBytes),
+                      let elementResponse = try? decodeJSON(ElementResponse.self, from: Data(responseString.utf8)) else {
+                    throw AppiumError.elementNotFound("Element not found or invalid response")
+                }
+                return elementResponse.value.elementId
+            } catch {
+                try await Wait.sleep(for: 1)
+            }
+        }
+        throw AppiumError.timeoutError("Timeout reached while waiting for element")
+    }
+
+    // MARK: - Main Functions
+
+    public static func executeScript(_ session: Self, script: String, args: [Any]) async throws -> Any? {
+        appiumLogger.info("Executing script in session: \(session.id)")
+        let dictionary: [String: Any] = [
+            "script": script,
+            "args": args
+        ]
+
+        let body = try JSONSerialization.data(withJSONObject: dictionary, options: [])
+        let request = try session.makeRequest(url: API.execute(session.id), method: .POST, body: body)
+        let response = try await session.executeRequest(request, description: "executing script")
+        try session.validateOKResponse(response, errorMessage: "Failed to execute script")
+
+        if let responseData = response.body {
+            let jsonResponse = try JSONSerialization.jsonObject(with: responseData, options: []) as? [String: Any]
+            return jsonResponse?["value"]
         }
         return nil
     }
 
     public static func hideKeyboard(_ session: Self) async throws {
-        appiumLogger.info(
-            "Attempting to hide keyboard in session: \(session.id)")
-        
-        var request: HTTPClient.Request
-        
-        request = try HTTPClient.Request(
-            url: API.hideKeyboard(session.id), method: .POST
-        )
-        
-        request.headers.add(name: "Content-Type", value: "application/json")
-        
-        do {
-            let response = try await session.client.execute(request: request)
-                .get()
-            if response.status == .ok {
-                appiumLogger.info("Keyboard hidden successfully.")
-            } else {
-                appiumLogger.error(
-                    "Failed to hide keyboard. Status: \(response.status)")
-                throw AppiumError.invalidResponse(
-                    "Failed to hide keyboard. Status: \(response.status)")
-            }
-        } catch {
-            appiumLogger.error("Error while hiding keyboard: \(error)")
-            throw AppiumError.elementNotFound(
-                "Error while hiding keyboard: \(error)")
-        }
+        appiumLogger.info("Attempting to hide keyboard in session: \(session.id)")
+        let request = try session.makeRequest(url: API.hideKeyboard(session.id), method: .POST)
+        let response = try await session.executeRequest(request, description: "hiding keyboard")
+        try session.validateOKResponse(response, errorMessage: "Failed to hide keyboard")
+        appiumLogger.info("Keyboard hidden successfully.")
     }
-    
+
     public func click(
         _ element: Element,
         _ wait: TimeInterval = 5,
@@ -125,45 +146,35 @@ public struct Session: Sendable {
     ) async throws {
         let fileId = "\(function) in \(file):\(line)"
         let elementId = try await select(element, wait, file: file, line: line, function: function)
-        
-        var request = try HTTPClient.Request(
-            url: API.click(elementId, id),
-            method: .POST)
-        request.headers.add(name: "Content-Type", value: "application/json")
+
+        let request = try makeRequest(url: API.click(elementId, id), method: .POST)
         
         do {
-            let response = try await client.execute(request: request)
-                .get()
+            let response = try await executeRequest(request, description: "clicking element")
             switch response.status {
             case .ok:
                 break
             case .badRequest:
-                print("\(fileId) -- Failed to click element \(elementId): HTTP \(response.status)")
+                appiumLogger.error("\(fileId) -- Bad request clicking element \(elementId)")
                 try await Wait.sleep(for: 1)
                 if Date().timeIntervalSince(date) < wait {
-                    try await click(element, date: date)
+                    try await click(element, wait, file: file, line: line, function: function, andWaitFor: andWaitFor, date: date)
                 } else {
-                    throw AppiumError.timeoutError("Timed out waiting to click element \(elementId)")
+                    throw AppiumError.timeoutError("Timed out clicking element \(elementId)")
                 }
             default:
-                throw AppiumError.invalidResponse(
-                    "\(fileId) -- Failed to click element \(elementId): HTTP \(response.status)")
-                
+                throw AppiumError.invalidResponse("\(fileId) -- Failed to click element: HTTP \(response.status)")
             }
         } catch {
-            // Try one more time
-            appiumLogger.info(
-                "Retrying click on element: \(element.selector.wrappedValue) in session: \(id)")
-            let response = try await client.execute(request: request)
-                .get()
+            appiumLogger.info("Retrying click on element: \(element.selector.wrappedValue)")
+            let response = try await executeRequest(request, description: "retry clicking element")
             guard response.status == .ok else {
-                appiumLogger.debug("\(fileId) -- Retry Failed to click element \(element.selector.wrappedValue): HTTP \(response.status)")
-                throw AppiumError.invalidResponse(
-                    "\(fileId) -- Failed to click element \(element.selector.wrappedValue): HTTP \(response.status)")
+                appiumLogger.error("\(fileId) -- Retry failed clicking element \(element.selector.wrappedValue)")
+                throw AppiumError.invalidResponse("\(fileId) -- Retry failed clicking element: HTTP \(response.status)")
             }
         }
     }
-    
+
     public func type(
         _ element: Element,
         text: String,
@@ -174,42 +185,23 @@ public struct Session: Sendable {
         let fileId = "\(function) in \(file):\(line)"
         let elementId: String
         do {
-            elementId = try await select(
-                element, file: file, line: line, function: function)
+            elementId = try await select(element, file: file, line: line, function: function)
         } catch {
             appiumLogger.error("\(fileId) -- Failed to find element: \(error)")
             throw error
         }
-        
-        let requestBody: Data
+
+        let requestBody = try encodeJSON(["text": text])
+        let request = try makeRequest(url: API.value(elementId, id), method: .POST, body: requestBody)
+
         do {
-            requestBody = try JSONEncoder().encode(["text": text])
+            let response = try await executeRequest(request, description: "typing into element")
+            try validateOKResponse(response, errorMessage: "\(fileId) -- Failed to type into element")
         } catch {
-            throw AppiumError.encodingError(
-                "\(fileId) -- Failed to encode text for sendKeys")
-        }
-        
-        var request = try HTTPClient.Request(
-            url: API.value(elementId, id),
-            method: .POST)
-        request.headers.add(name: "Content-Type", value: "application/json")
-        request.body = .data(requestBody)
-        
-        do {
-            let response = try await client.execute(request: request)
-                .get()
-            guard response.status == .ok else {
-                throw AppiumError.invalidResponse(
-                    "\(fileId) -- Failed to send keys: HTTP \(response.status)")
-            }
-        } catch let error as AppiumError {
-            throw error
-        } catch {
-            throw AppiumError.elementNotFound(
-                "\(fileId) -- Failed to send keys to element: \(elementId) - \(error.localizedDescription)"
-            )
+            throw AppiumError.elementNotFound("\(fileId) -- Failed typing into element: \(error.localizedDescription)")
         }
     }
+
     public func select(
         _ element: Element,
         _ timeout: TimeInterval = 5,
@@ -233,146 +225,95 @@ public struct Session: Sendable {
         )
     }
     
-    private func selectUnsafe(
-        _ element: Element
-    ) async throws -> String {
-        let requestBody: Data
-        do {
-            requestBody = try JSONEncoder().encode([
-                "using": element.strategy.rawValue,
-                "value": element.selector.wrappedValue,
-            ])
-        } catch {
-            appiumLogger.error(
-                "Failed to encode request body for findElement: \(error)")
-            throw AppiumError.encodingError(
-                "Failed to encode findElement request: \(error.localizedDescription)"
-            )
+    private func selectUnsafe(_ element: Element) async throws -> String {
+        let body = try encodeJSON([
+            "using": element.strategy.rawValue,
+            "value": element.selector.wrappedValue
+        ])
+        let request = try makeRequest(url: API.element(id), method: .POST, body: body)
+        let response = try await executeRequest(request, description: "finding element unsafe")
+        try validateOKResponse(response, errorMessage: "Failed to find element")
+
+        guard let body = response.body else {
+            throw AppiumError.invalidResponse("No response body while finding element")
         }
-        
-        var request: HTTPClient.Request
-        do {
-            request = try HTTPClient.Request(
-                url: API.element(id), method: .POST
-            )
-        } catch {
-            appiumLogger.error("Failed to create request: \(error)")
-            throw AppiumError.invalidResponse(
-                "Failed to create request: \(error.localizedDescription)")
+
+        let bufferData = Data(buffer: body)
+        let elementResponse = try decodeJSON(ElementResponse.self, from: bufferData)
+        return elementResponse.value.elementId
+    }
+    
+    public func isVisible(_ element: Element) async throws -> Bool {
+        let elementId = try await fetchElementId(element)
+        let request = try makeRequest(url: API.displayed(elementId, id), method: .GET)
+        let response = try await executeRequest(request, description: "checking visibility")
+        try validateOKResponse(response, errorMessage: "Failed to check visibility")
+
+        guard let body = response.body else {
+            throw AppiumError.invalidResponse("No response body for visibility")
         }
-        request.headers.add(name: "Content-Type", value: "application/json")
-        request.body = .data(requestBody)
-        
-        let response: HTTPClient.Response
-        do {
-            response = try await client.execute(request: request).get()
-        } catch {
-            appiumLogger.error("Failed to execute request: \(error)")
-            throw error
+
+        let bufferData = Data(buffer: body)
+        let visibilityResponse = try decodeJSON(VisibilityResponse.self, from: bufferData)
+        return visibilityResponse.value
+    }
+
+    public func isChecked(_ element: Element) async throws -> Bool {
+        return try await isVisible(element)
+    }
+
+    public func value(_ element: Element) async throws -> Double {
+        let elementId = try await fetchElementId(element)
+        let request = try makeRequest(url: API.attributeValue(elementId, id), method: .GET)
+        let response = try await executeRequest(request, description: "getting element value")
+        try validateOKResponse(response, errorMessage: "Failed to get element value")
+
+        guard let body = response.body,
+              let responseString = body.getString(at: 0, length: body.readableBytes) else {
+            throw AppiumError.invalidResponse("No value data received")
         }
-        
-        guard response.status == .ok else {
-            throw AppiumError.elementNotFound(
-                "Failed to find element: \(element.selector.wrappedValue)")
+
+        let valueResponse = try decodeJSON(ValueResponse.self, from: Data(responseString.utf8))
+        let valueString = valueResponse.value
+        let numericString = valueString.trimmingCharacters(in: CharacterSet(charactersIn: "0123456789.-").inverted)
+
+        guard var doubleValue = Double(numericString) else {
+            throw AppiumError.invalidResponse("Failed to convert value to Double")
         }
-        
-        guard var byteBuffer = response.body else {
-            appiumLogger.error("No response body")
-            throw AppiumError.elementNotFound(
-                "No response body: \(element.selector.wrappedValue)")
+
+        if valueString.contains("%") {
+            doubleValue /= 100
         }
-        
-        guard let body = byteBuffer.readString(length: byteBuffer.readableBytes)
-        else {
-            appiumLogger.error("Cannot read response body")
-            throw AppiumError.elementNotFound("Cannot read response body")
-        }
-        
-        do {
-            let elementResponse = try JSONDecoder().decode(
-                ElementResponse.self, from: Data(body.utf8))
-            return elementResponse.value.elementId
-        } catch {
-            appiumLogger.error(
-                "Failed to decode element response: \(error.localizedDescription)"
-            )
-            throw AppiumError.elementNotFound("Failed to decode element response: \(error.localizedDescription)")
+        return doubleValue
+    }
+    
+    public func containsMultipleInHierarchy(contains times: Int, _ text: String, timeout: TimeInterval = 5) async throws -> Bool {
+        try await waitForHierarchy(timeout: timeout) { hierarchy in
+            let occurrences = hierarchy.components(separatedBy: text).count - 1
+            return occurrences >= times
         }
     }
     
-    public func hierarchyContains(
-        _ text: String,
-        timeout: TimeInterval = 5
-    ) async throws -> Bool {
-        let startTime = Date()
-        while Date().timeIntervalSince(startTime) < timeout {
-            do {
-                let request = try HTTPClient.Request(
-                    url: API.source(id),
-                    method: .GET
-                )
-                let response = try await client.execute(request: request)
-                    .get()
-                
-                guard response.status == .ok else {
-                    throw AppiumError.invalidResponse(
-                        "Failed to get hierarchy: HTTP \(response.status)"
-                    )
-                }
-                
-                guard let body = response.body,
-                      let hierarchy = body.getString(
-                        at: 0,
-                        length: body.readableBytes
-                      )
-                else {
-                    try await Wait.sleep(for: 1)
-                    continue
-                }
-                
-                if hierarchy.contains(text) {
-                    return true
-                }
-            } catch {
-                try await Wait.sleep(for: 1)
-            }
-        }
-        
-        return false
+    public func hierarchyContains(_ text: String, timeout: TimeInterval = 5) async throws -> Bool {
+        try await waitForHierarchy(timeout: timeout) { $0.contains(text) }
     }
-    
-    public func hierarchyDoesNotContain(
-        _ text: String,
-        timeout: TimeInterval = 5
-    ) async throws -> Bool {
+
+    public func waitFor(_ text: String, timeout: TimeInterval = 5) async throws -> Bool {
+        try await waitForHierarchy(timeout: timeout) { $0.contains(text) }
+    }
+
+    public func hierarchyDoesNotContain(_ text: String, timeout: TimeInterval = 5) async throws -> Bool {
         let startTime = Date()
         while Date().timeIntervalSince(startTime) < timeout {
             do {
-                let request = try HTTPClient.Request(
-                    url: API.source(id),
-                    method: .GET
-                )
-                let response = try await client.execute(request: request)
-                    .get()
-                
-                guard response.status == .ok else {
-                    throw AppiumError.invalidResponse(
-                        "Failed to get hierarchy: HTTP \(response.status)"
-                    )
-                }
-                
-                guard let body = response.body,
-                      let hierarchy = body.getString(
-                        at: 0,
-                        length: body.readableBytes
-                      )
-                else {
-                    try await Wait.sleep(for: 1)
-                    continue
-                }
-                
-                if hierarchy.contains(text) {
-                    return false
+                let request = try makeRequest(url: API.source(id), method: .GET)
+                let response = try await executeRequest(request, description: "fetching hierarchy")
+                try validateOKResponse(response, errorMessage: "Failed to get hierarchy")
+                if let body = response.body,
+                   let hierarchy = body.getString(at: 0, length: body.readableBytes) {
+                    if hierarchy.contains(text) {
+                        return false
+                    }
                 }
             } catch {
                 try await Wait.sleep(for: 1)
@@ -380,322 +321,7 @@ public struct Session: Sendable {
         }
         return true
     }
-    
-    public func waitFor(
-        _ text: String,
-        timeout: TimeInterval = 5
-    ) async throws -> Bool {
-        let startTime = Date()
-        while Date().timeIntervalSince(startTime) < timeout {
-            do {
-                let request = try HTTPClient.Request(
-                    url: API.source(id),
-                    method: .GET
-                )
-                let response = try await client.execute(request: request)
-                    .get()
-                
-                guard response.status == .ok else {
-                    throw AppiumError.invalidResponse(
-                        "Failed to get hierarchy: HTTP \(response.status)"
-                    )
-                }
-                
-                guard let body = response.body,
-                      let hierarchy = body.getString(
-                        at: 0,
-                        length: body.readableBytes
-                      )
-                else {
-                    try await Wait.sleep(for: 1)
-                    continue
-                }
-                
-                if !hierarchy.contains(text) {
-                    return true
-                }
-            } catch {
-                try await Wait.sleep(for: 1)
-            }
-        }
-        
-        return false
-    }
-
-    public func waitForDismissed(
-        _ text: String,
-        timeout: TimeInterval = 5
-    ) async throws -> Bool {
-        let startTime = Date()
-        while Date().timeIntervalSince(startTime) < timeout {
-            do {
-                let request = try HTTPClient.Request(
-                    url: API.source(id),
-                    method: .GET
-                )
-                let response = try await client.execute(request: request)
-                    .get()
-                
-                guard response.status == .ok else {
-                    throw AppiumError.invalidResponse(
-                        "Failed to get hierarchy: HTTP \(response.status)"
-                    )
-                }
-                
-                guard let body = response.body,
-                      let hierarchy = body.getString(
-                        at: 0,
-                        length: body.readableBytes
-                      )
-                else {
-                    try await Wait.sleep(for: 1)
-                    continue
-                }
-                
-                if !hierarchy.contains(text) {
-                    return true
-                }
-            } catch {
-                try await Wait.sleep(for: 1)
-            }
-        }
-        
-        return false
-    }
-
-    public func isChecked(
-        _ element: Element
-    ) async throws -> Bool {
-        appiumLogger.info(
-            "Checking visibility of element with strategy: \(element.strategy.rawValue) and selector: \(element.selector.wrappedValue) in session: \(id)"
-        )
-
-        let elementId: String
-        do {
-            elementId = try await select(element)
-        } catch {
-            appiumLogger.error("Failed to find element: \(error)")
-            throw error
-        }
-
-        let request = try HTTPClient.Request(
-            url: API.displayed(elementId, id),
-            method: .GET
-        )
-
-        appiumLogger.info("Sending request to URL: \(request.url)")
-        
-        let response: HTTPClient.Response
-        do {
-            response = try await client.execute(request: request).get()
-        } catch {
-            appiumLogger.error("Failed to execute request: \(error)")
-            throw error
-        }
-
-        guard response.status == .ok else {
-            appiumLogger.error("Failed to check element visibility: HTTP \(response.status)")
-            throw AppiumError.invalidResponse(
-                "Failed to check element visibility: HTTP \(response.status)"
-            )
-        }
-
-        guard let responseData = response.body else {
-            appiumLogger.error("No response body")
-            throw AppiumError.invalidResponse(
-                "No response data received when checking element visibility."
-            )
-        }
-
-        if let responseString = responseData.getString(
-            at: 0,
-            length: responseData.readableBytes
-        ) {
-            appiumLogger.info("Raw response data: \(responseString)")
-        }
-
-        do {
-            let checkedResponse = try JSONDecoder().decode(
-                CheckedResponse.self,
-                from: responseData
-            )
-            return checkedResponse.value
-        } catch {
-            appiumLogger.error(
-                "Failed to decode visibility response: \(error.localizedDescription)"
-            )
-            throw AppiumError.invalidResponse(
-                "Failed to decode visibility response: \(error.localizedDescription)"
-            )
-        }
-    }
-    
-    public func value(
-         _ element: Element
-    ) async throws -> Double {
-        appiumLogger.info(
-            "Checking value of element with strategy: \(element.strategy.rawValue) and selector: \(element.selector.wrappedValue) in session: \(id)"
-        )
-        
-        let elementId: String
-        do {
-            elementId = try await select(
-                element, 35)
-        } catch {
-            appiumLogger.error("Failed to find element: \(error)")
-            throw error
-        }
-        
-        let request: HTTPClient.Request
-        do {
-            request = try HTTPClient.Request(
-                url: API.attributeValue(elementId, id),
-                method: .GET
-            )
-        } catch {
-            appiumLogger.error("Failed to create request: \(error)")
-            throw AppiumError.invalidResponse(
-                "Failed to create request: \(error.localizedDescription)"
-            )
-        }
-        
-        appiumLogger.info("Sending request to URL: \(request.url)")
-        let response: HTTPClient.Response
-        do {
-            response = try await client.execute(request: request).get()
-        } catch {
-            appiumLogger.error("Failed to execute request: \(error)")
-            throw error
-        }
-        
-        appiumLogger.info("Received response with status: \(response.status)")
-        guard response.status == .ok else {
-            appiumLogger.error(
-                "Failed to check element value: HTTP \(response.status)"
-            )
-            throw AppiumError.invalidResponse(
-                "Failed to check element value: HTTP \(response.status)"
-            )
-        }
-        
-        guard let responseData = response.body else {
-            appiumLogger.error("No response body")
-            throw AppiumError.invalidResponse(
-                "No response data received when checking element value."
-            )
-        }
-        
-        if let responseString = responseData.getString(
-            at: 0, length: responseData.readableBytes
-        ) {
-            appiumLogger.info("Raw response data: \(responseString)")
-        } else {
-            appiumLogger.error("Failed to read response data as string")
-        }
-        
-        do {
-            let valueResponse = try JSONDecoder().decode(
-                ValueResponse.self, from: responseData
-            )
-            let valueString = valueResponse.value
-            let numericString = valueString.trimmingCharacters(in: CharacterSet(charactersIn: "0123456789.-").inverted)
-            guard var doubleValue = Double(numericString) else {
-                appiumLogger.error("Failed to convert value to Double")
-                throw AppiumError.invalidResponse(
-                    "Failed to convert value to Double"
-                )
-            }
-            if valueString.contains("%") {
-                doubleValue /= 100
-            }
-            if valueString.contains(".") {
-                let decimalPart = valueString.split(separator: ".")[1].trimmingCharacters(in: CharacterSet(charactersIn: "0123456789.-").inverted)
-                if decimalPart.count == 2 {
-                    return doubleValue + 0.01 // Carry two decimals into Tests
-                }
-            }
-            return doubleValue
-        } catch {
-            appiumLogger.error(
-                "Failed to decode value response: \(error.localizedDescription)"
-            )
-            throw AppiumError.invalidResponse(
-                "Failed to decode value response: \(error.localizedDescription)"
-            )
-        }
-    }
-    
-    public func isVisible(
-        _ element: Element
-    ) async throws -> Bool {
-        appiumLogger.info(
-            "Checking visibility of element with strategy: \(element.strategy.rawValue) and selector: \(element.selector.wrappedValue) in session: \(id)"
-        )
-        
-        let elementId: String
-        do {
-            elementId = try await select(
-                element)
-        } catch {
-            appiumLogger.error("Failed to find element: \(error)")
-            throw error
-        }
-        
-        let request: HTTPClient.Request
-        do {
-            request = try HTTPClient.Request(
-                url:
-                    API.displayed(elementId, id),
-                method: .GET
-            )
-        } catch {
-            appiumLogger.error("Failed to create request: \(error)")
-            throw AppiumError.invalidResponse(
-                "Failed to create request: \(error.localizedDescription)")
-        }
-        
-        appiumLogger.info("Sending request to URL: \(request.url)")
-        let response: HTTPClient.Response
-        do {
-            response = try await client.execute(request: request).get()
-        } catch {
-            appiumLogger.error("Failed to execute request: \(error)")
-            throw error
-        }
-        
-        appiumLogger.info("Received response with status: \(response.status)")
-        guard response.status == .ok else {
-            appiumLogger.error(
-                "Failed to check element visibility: HTTP \(response.status)")
-            throw AppiumError.invalidResponse(
-                "Failed to check element visibility: HTTP \(response.status)")
-        }
-        
-        guard let responseData = response.body else {
-            appiumLogger.error("No response body")
-            throw AppiumError.invalidResponse(
-                "No response data received when checking element visibility.")
-        }
-        
-        if let responseString = responseData.getString(
-            at: 0, length: responseData.readableBytes)
-        {
-            appiumLogger.info("Raw response data: \(responseString)")
-        } else {
-            appiumLogger.error("Failed to read response data as string")
-        }
-        
-        do {
-            let visibilityResponse = try JSONDecoder().decode(
-                VisibilityResponse.self, from: responseData)
-            return visibilityResponse.value
-        } catch {
-            appiumLogger.error(
-                "Failed to decode visibility response: \(error.localizedDescription)"
-            )
-            throw AppiumError.invalidResponse(
-                "Failed to decode visibility response: \(error.localizedDescription)"
-            )
-        }
+    public func waitForDismissed(_ text: String, timeout: TimeInterval = 5) async throws -> Bool {
+        try await waitForHierarchy(timeout: timeout) { !$0.contains(text) }
     }
 }
