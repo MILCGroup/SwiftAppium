@@ -1,8 +1,8 @@
 //
 //  ExampleServerTrait.swift
 //  SwiftAppium
-//
-//  Created by Dalton Alexandre on 4/25/25.
+//  https://github.com/milcgroup/SwiftAppium
+//  See LICENSE for information
 //
 
 import Testing

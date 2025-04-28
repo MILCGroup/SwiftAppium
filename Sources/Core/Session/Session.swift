@@ -341,6 +341,46 @@ public struct Session: Sendable {
         return false
     }
     
+    public func hierarchyDoesNotContain(
+        _ text: String,
+        timeout: TimeInterval = 5
+    ) async throws -> Bool {
+        let startTime = Date()
+        while Date().timeIntervalSince(startTime) < timeout {
+            do {
+                let request = try HTTPClient.Request(
+                    url: API.source(id),
+                    method: .GET
+                )
+                let response = try await client.execute(request: request)
+                    .get()
+                
+                guard response.status == .ok else {
+                    throw AppiumError.invalidResponse(
+                        "Failed to get hierarchy: HTTP \(response.status)"
+                    )
+                }
+                
+                guard let body = response.body,
+                      let hierarchy = body.getString(
+                        at: 0,
+                        length: body.readableBytes
+                      )
+                else {
+                    try await Wait.sleep(for: 1)
+                    continue
+                }
+                
+                if hierarchy.contains(text) {
+                    return false
+                }
+            } catch {
+                try await Wait.sleep(for: 1)
+            }
+        }
+        return true
+    }
+    
     public func waitFor(
         _ text: String,
         timeout: TimeInterval = 5

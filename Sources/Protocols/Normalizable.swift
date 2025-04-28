@@ -10,8 +10,8 @@ import NIOCore
 
 public protocol Normalizable {}
 
-extension Normalizable {
-    public func normalizeJSON(_ data: Data) throws -> String {
+public extension Normalizable {
+    static func normalizeJSON(_ data: Data) throws -> String {
         let json = try JSONSerialization.jsonObject(with: data)
         let normalizedData = try JSONSerialization.data(
             withJSONObject: json, options: [.sortedKeys])
@@ -21,7 +21,7 @@ extension Normalizable {
                 with: "")
     }
 
-    public func normalizeResponseBody(_ bytes: ByteBuffer) throws -> String {
+    static func normalizeResponseBody(_ bytes: ByteBuffer) throws -> String {
         let data = Data(bytes.readableBytesView)
         var json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
 
