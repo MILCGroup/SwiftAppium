@@ -13,6 +13,8 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     public let client: HTTPClient
     public let device: Driver
     public let session: Session
+    public var id: String { session.id }
+    public var platform: Platform { session.platform }
 
     public init(client: HTTPClient, device: Driver) async throws {
         self.client = client
