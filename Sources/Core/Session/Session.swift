@@ -71,15 +71,24 @@ public struct Session: Sendable {
                 let request = try makeRequest(url: API.source(id), method: .GET)
                 let response = try await executeRequest(request, description: "fetching hierarchy")
                 try validateOKResponse(response, errorMessage: "Failed to get hierarchy")
-
-                if let body = response.body,
-                   let hierarchy = body.getString(at: 0, length: body.readableBytes),
-                   matchCondition(hierarchy) {
+                
+                guard let body = response.body,
+                      let hierarchy = body.getString(at: 0, length: body.readableBytes) else {
+                    appiumLogger.warning("Failed to read hierarchy, retrying...")
+                    try await Wait.sleep(for: UInt64(0.2)) 
+                    continue
+                }
+                
+                if matchCondition(hierarchy) {
                     return true
                 }
+                
             } catch {
-                try await Wait.sleep(for: 1)
+                appiumLogger.warning("Hierarchy fetch failed: \(error.localizedDescription)")
+                try await Wait.sleep(for: UInt64(0.2))
             }
+            
+            try await Wait.sleep(for: UInt64(0.2))
         }
         return false
     }
