@@ -34,7 +34,7 @@ public protocol AppiumSession: Sendable {
         log: LogData
     ) async throws -> String
     func has(
-        times: Int, _ text: String,
+        _ times: Int, _ text: String,
         timeout: TimeInterval,
         pollInterval: TimeInterval
     ) async throws -> Bool
