@@ -314,7 +314,7 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     }
 
     public func has(
-        times: Int, _ text: String,
+        _ times: Int, _ text: String,
         timeout: TimeInterval = 5,
         pollInterval: TimeInterval = 0.2
     ) async throws -> Bool {
