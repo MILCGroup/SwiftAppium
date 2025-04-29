@@ -16,45 +16,37 @@ public protocol AppiumSession: Sendable {
     func click(
         _ element: Element,
         _ wait: TimeInterval,
-        file: String,
-        line: UInt,
-        function: StaticString,
+        pollInterval: TimeInterval,
+        log: LogData,
         andWaitFor: Element?,
         date: Date
     ) async throws
     func type(
         _ element: Element,
         text: String,
-        file: String,
-        line: UInt,
-        function: StaticString
+        pollInterval: TimeInterval,
+        log: LogData
     ) async throws
     func select(
         _ element: Element,
         _ timeout: TimeInterval,
-        file: String,
-        line: UInt,
-        function: StaticString
+        pollInterval: TimeInterval,
+        log: LogData
     ) async throws -> String
-    func hierarchyContains(
-        _ text: String,
-        timeout: TimeInterval
+    func has(
+        times: Int, _ text: String,
+        timeout: TimeInterval,
+        pollInterval: TimeInterval
     ) async throws -> Bool
-    func containsMultipleInHierarchy(
-        contains times: Int, _ text: String,
-        timeout: TimeInterval
-    ) async throws -> Bool
-    func hierarchyDoesNotContain(
+    func has(
         _ text: String,
-        timeout: TimeInterval
+        timeout: TimeInterval,
+        pollInterval: TimeInterval
     ) async throws -> Bool
-    func waitFor(
+    func hasNo(
         _ text: String,
-        timeout: TimeInterval
-    ) async throws -> Bool
-    func waitForDismissed(
-        _ text: String,
-        timeout: TimeInterval
+        timeout: TimeInterval,
+        pollInterval: TimeInterval
     ) async throws -> Bool
     func isChecked(
         _ element: Element

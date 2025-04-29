@@ -22,10 +22,6 @@ public class TestModel: @unchecked Sendable {
         self.sessionModel = try await SessionModel(client: client.client, device: device)
     }
     
-    public var clientModel: ClientModel {
-        return ClientModel()
-    }
-    
     public var session: SessionModel {
         return sessionModel
     }

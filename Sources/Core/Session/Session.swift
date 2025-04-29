@@ -64,7 +64,11 @@ public struct Session: Sendable {
         }
     }
 
-    private func waitForHierarchy(timeout: TimeInterval, matchCondition: (String) -> Bool) async throws -> Bool {
+    private func waitForHierarchy(
+        timeout: TimeInterval,
+        pollInterval: TimeInterval = 0.2,
+        matchCondition: (String) -> Bool
+    ) async throws -> Bool {
         let startTime = Date()
         while Date().timeIntervalSince(startTime) < timeout {
             do {
@@ -75,44 +79,21 @@ public struct Session: Sendable {
                 guard let body = response.body,
                       let hierarchy = body.getString(at: 0, length: body.readableBytes) else {
                     appiumLogger.warning("Failed to read hierarchy, retrying...")
-                    try await Wait.sleep(for: UInt64(0.2)) 
+                    try await Wait.sleep(for: UInt64(pollInterval))
                     continue
                 }
                 
                 if matchCondition(hierarchy) {
                     return true
                 }
-                
+
             } catch {
                 appiumLogger.warning("Hierarchy fetch failed: \(error.localizedDescription)")
-                try await Wait.sleep(for: UInt64(0.2))
             }
-            
-            try await Wait.sleep(for: UInt64(0.2))
+
+            try await Wait.sleep(for: UInt64(pollInterval))
         }
         return false
-    }
-
-    private func fetchElementId(_ element: Element, timeout: TimeInterval = 5) async throws -> String {
-        let startTime = Date()
-        while Date().timeIntervalSince(startTime) < timeout {
-            do {
-                let body = try encodeJSON(["using": element.strategy.rawValue, "value": element.selector.wrappedValue])
-                let request = try makeRequest(url: API.element(id), method: .POST, body: body)
-                let response = try await executeRequest(request, description: "finding element")
-                try validateOKResponse(response, errorMessage: "Failed to find element")
-
-                guard let responseBody = response.body,
-                      let responseString = responseBody.getString(at: 0, length: responseBody.readableBytes),
-                      let elementResponse = try? decodeJSON(ElementResponse.self, from: Data(responseString.utf8)) else {
-                    throw AppiumError.elementNotFound("Element not found or invalid response")
-                }
-                return elementResponse.value.elementId
-            } catch {
-                try await Wait.sleep(for: 1)
-            }
-        }
-        throw AppiumError.timeoutError("Timeout reached while waiting for element")
     }
 
     // MARK: - Main Functions
@@ -143,43 +124,41 @@ public struct Session: Sendable {
         try session.validateOKResponse(response, errorMessage: "Failed to hide keyboard")
         appiumLogger.info("Keyboard hidden successfully.")
     }
-
+    
     public func click(
         _ element: Element,
         _ wait: TimeInterval = 5,
-        file: String = #file,
-        line: UInt = #line,
-        function: StaticString = #function,
+        pollInterval: TimeInterval = 0.2,
+        log: LogData = LogData(),
         andWaitFor: Element? = nil,
         date: Date = Date()
     ) async throws {
-        let fileId = "\(function) in \(file):\(line)"
-        let elementId = try await select(element, wait, file: file, line: line, function: function)
+        let elementId = try await select(element, wait, pollInterval: pollInterval, log: log)
 
         let request = try makeRequest(url: API.click(elementId, id), method: .POST)
-        
+
         do {
             let response = try await executeRequest(request, description: "clicking element")
             switch response.status {
             case .ok:
                 break
             case .badRequest:
-                appiumLogger.error("\(fileId) -- Bad request clicking element \(elementId)")
+                appiumLogger.error("\(log.fileId) -- Bad request clicking element \(elementId)")
                 try await Wait.sleep(for: 1)
                 if Date().timeIntervalSince(date) < wait {
-                    try await click(element, wait, file: file, line: line, function: function, andWaitFor: andWaitFor, date: date)
+                    try await click(element, wait, pollInterval: pollInterval, log: log, andWaitFor: andWaitFor, date: date)
                 } else {
                     throw AppiumError.timeoutError("Timed out clicking element \(elementId)")
                 }
             default:
-                throw AppiumError.invalidResponse("\(fileId) -- Failed to click element: HTTP \(response.status)")
+                throw AppiumError.invalidResponse("\(log.fileId) -- Failed to click element: HTTP \(response.status)")
             }
         } catch {
             appiumLogger.info("Retrying click on element: \(element.selector.wrappedValue)")
             let response = try await executeRequest(request, description: "retry clicking element")
             guard response.status == .ok else {
-                appiumLogger.error("\(fileId) -- Retry failed clicking element \(element.selector.wrappedValue)")
-                throw AppiumError.invalidResponse("\(fileId) -- Retry failed clicking element: HTTP \(response.status)")
+                appiumLogger.error("\(log.fileId) -- Retry failed clicking element \(element.selector.wrappedValue)")
+                throw AppiumError.invalidResponse("\(log.fileId) -- Retry failed clicking element: HTTP \(response.status)")
             }
         }
     }
@@ -187,16 +166,14 @@ public struct Session: Sendable {
     public func type(
         _ element: Element,
         text: String,
-        file: String = #file,
-        line: UInt = #line,
-        function: StaticString = #function
+        pollInterval: TimeInterval = 0.2,
+        log: LogData = LogData()
     ) async throws {
-        let fileId = "\(function) in \(file):\(line)"
         let elementId: String
         do {
-            elementId = try await select(element, file: file, line: line, function: function)
+            elementId = try await select(element, pollInterval: pollInterval, log: log)
         } catch {
-            appiumLogger.error("\(fileId) -- Failed to find element: \(error)")
+            appiumLogger.error("\(log.fileId) -- Failed to find element: \(error)")
             throw error
         }
 
@@ -205,32 +182,31 @@ public struct Session: Sendable {
 
         do {
             let response = try await executeRequest(request, description: "typing into element")
-            try validateOKResponse(response, errorMessage: "\(fileId) -- Failed to type into element")
+            try validateOKResponse(response, errorMessage: "\(log.fileId) -- Failed to type into element")
         } catch {
-            throw AppiumError.elementNotFound("\(fileId) -- Failed typing into element: \(error.localizedDescription)")
+            throw AppiumError.elementNotFound("\(log.fileId) -- Failed typing into element: \(error.localizedDescription)")
         }
     }
 
     public func select(
         _ element: Element,
         _ timeout: TimeInterval = 5,
-        file: String = #file,
-        line: UInt = #line,
-        function: StaticString = #function
+        pollInterval: TimeInterval = 0.2,
+        log: LogData = LogData()
     ) async throws -> String {
-        let fileId = "\(function) in \(file):\(line)"
         let startTime = Date()
         while Date().timeIntervalSince(startTime) < timeout {
             do {
-                let elementF = try await selectUnsafe(element)
-                return elementF
+                return try await selectUnsafe(element)
             } catch {
+                appiumLogger.debug("\(log.fileId) -- Retry: \(error.localizedDescription)")
+                try await Wait.sleep(for: UInt64(pollInterval * 1_000_000_000))
             }
         }
-        
-        appiumLogger.debug("\(fileId) -- Timeout reached while waiting for element with selector: \(element.selector.wrappedValue)")
+
+        appiumLogger.debug("\(log.fileId) -- Timeout reached while waiting for element with selector: \(element.selector.wrappedValue)")
         throw AppiumError.timeoutError(
-            "\(fileId) -- Timeout reached while waiting for element with selector: \(element.selector.wrappedValue)"
+            "\(log.fileId) -- Timeout reached while waiting for element with selector: \(element.selector.wrappedValue)"
         )
     }
     
@@ -253,7 +229,7 @@ public struct Session: Sendable {
     }
     
     public func isVisible(_ element: Element) async throws -> Bool {
-        let elementId = try await fetchElementId(element)
+        let elementId = try await select(element)
         let request = try makeRequest(url: API.displayed(elementId, id), method: .GET)
         let response = try await executeRequest(request, description: "checking visibility")
         try validateOKResponse(response, errorMessage: "Failed to check visibility")
@@ -272,7 +248,7 @@ public struct Session: Sendable {
     }
 
     public func value(_ element: Element) async throws -> Double {
-        let elementId = try await fetchElementId(element)
+        let elementId = try await select(element)
         let request = try makeRequest(url: API.attributeValue(elementId, id), method: .GET)
         let response = try await executeRequest(request, description: "getting element value")
         try validateOKResponse(response, errorMessage: "Failed to get element value")
@@ -296,41 +272,18 @@ public struct Session: Sendable {
         return doubleValue
     }
     
-    public func containsMultipleInHierarchy(contains times: Int, _ text: String, timeout: TimeInterval = 5) async throws -> Bool {
-        try await waitForHierarchy(timeout: timeout) { hierarchy in
+    public func has(_ times: Int, _ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = 0.2) async throws -> Bool {
+        try await waitForHierarchy(timeout: timeout, pollInterval: pollInterval) { hierarchy in
             let occurrences = hierarchy.components(separatedBy: text).count - 1
             return occurrences >= times
         }
     }
-    
-    public func hierarchyContains(_ text: String, timeout: TimeInterval = 5) async throws -> Bool {
-        try await waitForHierarchy(timeout: timeout) { $0.contains(text) }
+
+    public func has(_ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = 0.2) async throws -> Bool {
+        try await waitForHierarchy(timeout: timeout, pollInterval: pollInterval) { $0.contains(text) }
     }
 
-    public func waitFor(_ text: String, timeout: TimeInterval = 5) async throws -> Bool {
-        try await waitForHierarchy(timeout: timeout) { $0.contains(text) }
-    }
-
-    public func hierarchyDoesNotContain(_ text: String, timeout: TimeInterval = 5) async throws -> Bool {
-        let startTime = Date()
-        while Date().timeIntervalSince(startTime) < timeout {
-            do {
-                let request = try makeRequest(url: API.source(id), method: .GET)
-                let response = try await executeRequest(request, description: "fetching hierarchy")
-                try validateOKResponse(response, errorMessage: "Failed to get hierarchy")
-                if let body = response.body,
-                   let hierarchy = body.getString(at: 0, length: body.readableBytes) {
-                    if hierarchy.contains(text) {
-                        return false
-                    }
-                }
-            } catch {
-                try await Wait.sleep(for: 1)
-            }
-        }
-        return true
-    }
-    public func waitForDismissed(_ text: String, timeout: TimeInterval = 5) async throws -> Bool {
-        try await waitForHierarchy(timeout: timeout) { !$0.contains(text) }
+    public func hasNo(_ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = 0.2) async throws -> Bool {
+        try await waitForHierarchy(timeout: timeout, pollInterval: pollInterval) { !$0.contains(text) }
     }
 }

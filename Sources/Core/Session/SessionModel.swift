@@ -270,18 +270,16 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     public func click(
         _ element: Element,
         _ wait: TimeInterval = 5,
-        file: String = #file,
-        line: UInt = #line,
-        function: StaticString = #function,
+        pollInterval: TimeInterval = 0.2,
+        log: LogData = LogData(),
         andWaitFor: Element? = nil,
         date: Date = Date()
     ) async throws {
         try await session.click(
             element,
             wait,
-            file: file,
-            line: line,
-            function: function,
+            pollInterval: pollInterval,
+            log: log,
             andWaitFor: andWaitFor,
             date: date
         )
@@ -290,70 +288,55 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     public func type(
         _ element: Element,
         text: String,
-        file: String = #file,
-        line: UInt = #line,
-        function: StaticString = #function
+        pollInterval: TimeInterval = 0.2,
+        log: LogData = LogData()
     ) async throws {
         try await session.type(
             element,
             text: text,
-            file: file,
-            line: line,
-            function: function
+            pollInterval: pollInterval,
+            log: log
         )
     }
 
     public func select(
         _ element: Element,
         _ timeout: TimeInterval = 5,
-        file: String = #file,
-        line: UInt = #line,
-        function: StaticString = #function
+        pollInterval: TimeInterval = 0.2,
+        log: LogData = LogData()
     ) async throws -> String {
         return try await session.select(
             element,
             timeout,
-            file: file,
-            line: line,
-            function: function
+            pollInterval: pollInterval,
+            log: log
         )
     }
 
-    public func hierarchyContains(
-        _ text: String,
-        timeout: TimeInterval = 5
+    public func has(
+        times: Int, _ text: String,
+        timeout: TimeInterval = 5,
+        pollInterval: TimeInterval = 0.2
     ) async throws -> Bool {
-        return try await session.hierarchyContains(text, timeout: timeout)
-    }
-    
-    public func containsMultipleInHierarchy(
-        contains times: Int, _ text: String,
-        timeout: TimeInterval = 5
-    ) async throws -> Bool {
-        return try await session.containsMultipleInHierarchy(
-            contains: times, text, timeout: timeout
+        return try await session.has(
+            times, text, timeout: timeout, pollInterval: pollInterval
         )
     }
     
-    public func hierarchyDoesNotContain(
+    public func has(
         _ text: String,
-        timeout: TimeInterval = 5
+        timeout: TimeInterval = 5,
+        pollInterval: TimeInterval = 0.2
     ) async throws -> Bool {
-        return try await session.hierarchyDoesNotContain(text, timeout: timeout)
-    }
-    
-    public func waitFor(
-        _ text: String,
-        timeout: TimeInterval = 5
-    ) async throws -> Bool {
-        return try await session.waitFor(text, timeout: timeout)
+        return try await session.has(text, timeout: timeout, pollInterval: pollInterval)
     }
 
-    public func waitForDismissed(
+    public func hasNo(
         _ text: String,
-        timeout: TimeInterval = 5
+        timeout: TimeInterval = 5,
+        pollInterval: TimeInterval = 0.2
     ) async throws -> Bool {
-        return try await session.waitForDismissed(text, timeout: timeout)
+        return try await session.hasNo(text, timeout: timeout, pollInterval: pollInterval)
     }
 
     public func isChecked(
