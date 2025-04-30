@@ -271,7 +271,6 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
         _ element: Element,
         _ wait: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay,
-        log: LogData = LogData(),
         andWaitFor: Element? = nil,
         date: Date = Date()
     ) async throws {
@@ -279,7 +278,6 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
             element,
             wait,
             pollInterval: pollInterval,
-            log: log,
             andWaitFor: andWaitFor,
             date: date
         )
@@ -288,28 +286,24 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     public func type(
         _ element: Element,
         text: String,
-        pollInterval: TimeInterval = Wait.retryDelay,
-        log: LogData = LogData()
+        pollInterval: TimeInterval = Wait.retryDelay
     ) async throws {
         try await session.type(
             element,
             text: text,
-            pollInterval: pollInterval,
-            log: log
+            pollInterval: pollInterval
         )
     }
 
     public func select(
         _ element: Element,
         _ timeout: TimeInterval = 5,
-        pollInterval: TimeInterval = Wait.retryDelay,
-        log: LogData = LogData()
+        pollInterval: TimeInterval = Wait.retryDelay
     ) async throws -> String {
         return try await session.select(
             element,
             timeout,
-            pollInterval: pollInterval,
-            log: log
+            pollInterval: pollInterval
         )
     }
 

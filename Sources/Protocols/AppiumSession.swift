@@ -17,21 +17,18 @@ public protocol AppiumSession: Sendable {
         _ element: Element,
         _ wait: TimeInterval,
         pollInterval: TimeInterval,
-        log: LogData,
         andWaitFor: Element?,
         date: Date
     ) async throws
     func type(
         _ element: Element,
         text: String,
-        pollInterval: TimeInterval,
-        log: LogData
+        pollInterval: TimeInterval
     ) async throws
     func select(
         _ element: Element,
         _ timeout: TimeInterval,
-        pollInterval: TimeInterval,
-        log: LogData
+        pollInterval: TimeInterval
     ) async throws -> String
     func has(
         _ times: Int, _ text: String,

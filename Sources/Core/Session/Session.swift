@@ -129,11 +129,14 @@ public struct Session: Sendable {
         _ element: Element,
         _ wait: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay,
-        log: LogData = LogData(),
+        file: String = #file,
+    line: UInt = #line,
+    function: StaticString = #function,
         andWaitFor: Element? = nil,
         date: Date = Date()
     ) async throws {
-        let elementId = try await select(element, wait, pollInterval: pollInterval, log: log)
+        let fileId = "\(function) in \(file):\(line)"
+        let elementId = try await select(element, wait, pollInterval: pollInterval)
 
         let request = try makeRequest(url: API.click(elementId, id), method: .POST)
 
@@ -143,22 +146,22 @@ public struct Session: Sendable {
             case .ok:
                 break
             case .badRequest:
-                appiumLogger.error("\(log.fileId) -- Bad request clicking element \(elementId)")
+                appiumLogger.error("\(fileId) -- Bad request clicking element \(elementId)")
                 try await Wait.sleep(for: UInt64(pollInterval))
                 if Date().timeIntervalSince(date) < wait {
-                    try await click(element, wait, pollInterval: pollInterval, log: log, andWaitFor: andWaitFor, date: date)
+                    try await click(element, wait, pollInterval: pollInterval, andWaitFor: andWaitFor, date: date)
                 } else {
                     throw AppiumError.timeoutError("Timed out clicking element \(elementId)")
                 }
             default:
-                throw AppiumError.invalidResponse("\(log.fileId) -- Failed to click element: HTTP \(response.status)")
+                throw AppiumError.invalidResponse("\(fileId) -- Failed to click element: HTTP \(response.status)")
             }
         } catch {
             appiumLogger.info("Retrying click on element: \(element.selector.wrappedValue)")
             let response = try await executeRequest(request, description: "retry clicking element")
             guard response.status == .ok else {
-                appiumLogger.error("\(log.fileId) -- Retry failed clicking element \(element.selector.wrappedValue)")
-                throw AppiumError.invalidResponse("\(log.fileId) -- Retry failed clicking element: HTTP \(response.status)")
+                appiumLogger.error("\(fileId) -- Retry failed clicking element \(element.selector.wrappedValue)")
+                throw AppiumError.invalidResponse("\(fileId) -- Retry failed clicking element: HTTP \(response.status)")
             }
         }
     }
@@ -167,13 +170,16 @@ public struct Session: Sendable {
         _ element: Element,
         text: String,
         pollInterval: TimeInterval = Wait.retryDelay,
-        log: LogData = LogData()
+        file: String = #file,
+        line: UInt = #line,
+        function: StaticString = #function
     ) async throws {
+        let fileId = "\(function) in \(file):\(line)"
         let elementId: String
         do {
-            elementId = try await select(element, pollInterval: pollInterval, log: log)
+            elementId = try await select(element, pollInterval: pollInterval)
         } catch {
-            appiumLogger.error("\(log.fileId) -- Failed to find element: \(error)")
+            appiumLogger.error("\(fileId) -- Failed to find element: \(error)")
             throw error
         }
 
@@ -182,9 +188,9 @@ public struct Session: Sendable {
 
         do {
             let response = try await executeRequest(request, description: "typing into element")
-            try validateOKResponse(response, errorMessage: "\(log.fileId) -- Failed to type into element")
+            try validateOKResponse(response, errorMessage: "\(fileId) -- Failed to type into element")
         } catch {
-            throw AppiumError.elementNotFound("\(log.fileId) -- Failed typing into element: \(error.localizedDescription)")
+            throw AppiumError.elementNotFound("\(fileId) -- Failed typing into element: \(error.localizedDescription)")
         }
     }
 
@@ -192,21 +198,24 @@ public struct Session: Sendable {
         _ element: Element,
         _ timeout: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay,
-        log: LogData = LogData()
+        file: String = #file,
+        line: UInt = #line,
+        function: StaticString = #function
     ) async throws -> String {
+        let fileId = "\(function) in \(file):\(line)"
         let startTime = Date()
         while Date().timeIntervalSince(startTime) < timeout {
             do {
                 return try await selectUnsafe(element)
             } catch {
-                appiumLogger.debug("\(log.fileId) -- Retry: \(error.localizedDescription)")
+                appiumLogger.debug("\(fileId) -- Retry: \(error.localizedDescription)")
                 try await Wait.sleep(for: UInt64(pollInterval))
             }
         }
 
-        appiumLogger.debug("\(log.fileId) -- Timeout reached while waiting for element with selector: \(element.selector.wrappedValue)")
+        appiumLogger.debug("\(fileId) -- Timeout reached while waiting for element with selector: \(element.selector.wrappedValue)")
         throw AppiumError.timeoutError(
-            "\(log.fileId) -- Timeout reached while waiting for element with selector: \(element.selector.wrappedValue)"
+            "\(fileId) -- Timeout reached while waiting for element with selector: \(element.selector.wrappedValue)"
         )
     }
     
