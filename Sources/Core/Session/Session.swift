@@ -66,7 +66,7 @@ public struct Session: Sendable {
 
     private func waitForHierarchy(
         timeout: TimeInterval,
-        pollInterval: TimeInterval = 0.2,
+        pollInterval: TimeInterval = Wait.retryDelay,
         matchCondition: (String) -> Bool
     ) async throws -> Bool {
         let startTime = Date()
@@ -128,7 +128,7 @@ public struct Session: Sendable {
     public func click(
         _ element: Element,
         _ wait: TimeInterval = 5,
-        pollInterval: TimeInterval = 0.2,
+        pollInterval: TimeInterval = Wait.retryDelay,
         log: LogData = LogData(),
         andWaitFor: Element? = nil,
         date: Date = Date()
@@ -144,7 +144,7 @@ public struct Session: Sendable {
                 break
             case .badRequest:
                 appiumLogger.error("\(log.fileId) -- Bad request clicking element \(elementId)")
-                try await Wait.sleep(for: 1)
+                try await Wait.sleep(for: UInt64(pollInterval))
                 if Date().timeIntervalSince(date) < wait {
                     try await click(element, wait, pollInterval: pollInterval, log: log, andWaitFor: andWaitFor, date: date)
                 } else {
@@ -166,7 +166,7 @@ public struct Session: Sendable {
     public func type(
         _ element: Element,
         text: String,
-        pollInterval: TimeInterval = 0.2,
+        pollInterval: TimeInterval = Wait.retryDelay,
         log: LogData = LogData()
     ) async throws {
         let elementId: String
@@ -191,7 +191,7 @@ public struct Session: Sendable {
     public func select(
         _ element: Element,
         _ timeout: TimeInterval = 5,
-        pollInterval: TimeInterval = 0.2,
+        pollInterval: TimeInterval = Wait.retryDelay,
         log: LogData = LogData()
     ) async throws -> String {
         let startTime = Date()
@@ -200,7 +200,7 @@ public struct Session: Sendable {
                 return try await selectUnsafe(element)
             } catch {
                 appiumLogger.debug("\(log.fileId) -- Retry: \(error.localizedDescription)")
-                try await Wait.sleep(for: UInt64(pollInterval * 1_000_000_000))
+                try await Wait.sleep(for: UInt64(pollInterval))
             }
         }
 
@@ -272,18 +272,18 @@ public struct Session: Sendable {
         return doubleValue
     }
     
-    public func has(_ times: Int, _ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = 0.2) async throws -> Bool {
+    public func has(_ times: Int, _ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = Wait.retryDelay) async throws -> Bool {
         try await waitForHierarchy(timeout: timeout, pollInterval: pollInterval) { hierarchy in
             let occurrences = hierarchy.components(separatedBy: text).count - 1
             return occurrences >= times
         }
     }
 
-    public func has(_ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = 0.2) async throws -> Bool {
+    public func has(_ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = Wait.retryDelay) async throws -> Bool {
         try await waitForHierarchy(timeout: timeout, pollInterval: pollInterval) { $0.contains(text) }
     }
 
-    public func hasNo(_ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = 0.2) async throws -> Bool {
+    public func hasNo(_ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = Wait.retryDelay) async throws -> Bool {
         try await waitForHierarchy(timeout: timeout, pollInterval: pollInterval) { !$0.contains(text) }
     }
 }

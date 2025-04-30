@@ -270,7 +270,7 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     public func click(
         _ element: Element,
         _ wait: TimeInterval = 5,
-        pollInterval: TimeInterval = 0.2,
+        pollInterval: TimeInterval = Wait.retryDelay,
         log: LogData = LogData(),
         andWaitFor: Element? = nil,
         date: Date = Date()
@@ -288,7 +288,7 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     public func type(
         _ element: Element,
         text: String,
-        pollInterval: TimeInterval = 0.2,
+        pollInterval: TimeInterval = Wait.retryDelay,
         log: LogData = LogData()
     ) async throws {
         try await session.type(
@@ -302,7 +302,7 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     public func select(
         _ element: Element,
         _ timeout: TimeInterval = 5,
-        pollInterval: TimeInterval = 0.2,
+        pollInterval: TimeInterval = Wait.retryDelay,
         log: LogData = LogData()
     ) async throws -> String {
         return try await session.select(
@@ -316,7 +316,7 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     public func has(
         _ times: Int, _ text: String,
         timeout: TimeInterval = 5,
-        pollInterval: TimeInterval = 0.2
+        pollInterval: TimeInterval = Wait.retryDelay
     ) async throws -> Bool {
         return try await session.has(
             times, text, timeout: timeout, pollInterval: pollInterval
@@ -326,7 +326,7 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     public func has(
         _ text: String,
         timeout: TimeInterval = 5,
-        pollInterval: TimeInterval = 0.2
+        pollInterval: TimeInterval = Wait.retryDelay
     ) async throws -> Bool {
         return try await session.has(text, timeout: timeout, pollInterval: pollInterval)
     }
@@ -334,7 +334,7 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     public func hasNo(
         _ text: String,
         timeout: TimeInterval = 5,
-        pollInterval: TimeInterval = 0.2
+        pollInterval: TimeInterval = Wait.retryDelay
     ) async throws -> Bool {
         return try await session.hasNo(text, timeout: timeout, pollInterval: pollInterval)
     }
