@@ -213,7 +213,7 @@ public struct Session: Sendable {
         }
 
         let finalErrorMessage = "\(fileId) -- Click operation failed for \(element.selector.wrappedValue). Last error: \(lastError?.localizedDescription ?? "Timeout before completion.")"
-        appiumLogger.error(finalErrorMessage)
+        appiumLogger.error("\(finalErrorMessage)")
         throw lastError ?? AppiumError.timeoutError(finalErrorMessage)
     }
 
