@@ -45,7 +45,8 @@ public struct Session: Sendable {
         do {
             return try await client.execute(request: request).get()
         } catch {
-            appiumLogger.error("Failed \(description): \(error.localizedDescription)")
+            let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
+            appiumLogger.error("Failed \(description): \(message)")
             throw error
         }
     }
@@ -88,7 +89,8 @@ public struct Session: Sendable {
                 }
 
             } catch {
-                appiumLogger.warning("Hierarchy fetch failed: \(error.localizedDescription)")
+                let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
+                appiumLogger.warning("Hierarchy fetch failed: \(message)")
             }
 
             try await Wait.sleep(for: UInt64(pollInterval))
@@ -158,8 +160,8 @@ public struct Session: Sendable {
                 elementId = try await select(element, remainingOverallTimeForIteration, pollInterval: internalSelectPollInterval, file: file, line: line, function: function)
             } catch let error {
                 lastError = error
-                let specificErrorDesc = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
-                appiumLogger.warning("\(fileId) -- Failed to select element \(element.selector.wrappedValue) during click: \(specificErrorDesc)")
+                let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
+                appiumLogger.warning("\(fileId) -- Failed to select element \(element.selector.wrappedValue) during click: \(message)")
                 
                 if Date().timeIntervalSince(date) >= wait - pollInterval { break }
                 try await Wait.sleep(for: UInt64(pollInterval))
@@ -195,9 +197,9 @@ public struct Session: Sendable {
                             appiumLogger.info("\(fileId) -- Successfully clicked \(elementId) and found \(elementToWaitFor.selector.wrappedValue).")
                             return
                         } catch let waitError {
-                            let specificWaitErrorDesc = (waitError as? Throwable)?.userFriendlyMessage ?? waitError.localizedDescription
-                            appiumLogger.error("\(fileId) -- Clicked \(elementId), but \(elementToWaitFor.selector.wrappedValue) did not appear: \(specificWaitErrorDesc)")
-                            throw AppiumError.timeoutError("\(fileId) -- Clicked \(elementId), but \(elementToWaitFor.selector.wrappedValue) did not appear: \(specificWaitErrorDesc)")
+                            let message = (waitError as? Throwable)?.userFriendlyMessage ?? waitError.localizedDescription
+                            appiumLogger.error("\(fileId) -- Clicked \(elementId), but \(elementToWaitFor.selector.wrappedValue) did not appear: \(message)")
+                            throw AppiumError.timeoutError("\(fileId) -- Clicked \(elementId), but \(elementToWaitFor.selector.wrappedValue) did not appear: \(message)")
                         }
                     }
                     appiumLogger.info("\(fileId) -- Successfully clicked \(elementId).")
@@ -205,18 +207,18 @@ public struct Session: Sendable {
 
                 case .badRequest:
                     lastError = AppiumError.invalidResponse("\(fileId) -- Bad request clicking element \(elementId).")
-                    let errorDescription = (lastError as? Throwable)?.userFriendlyMessage ?? lastError?.localizedDescription ?? "Unknown bad request error"
-                    appiumLogger.warning("\(errorDescription)")
+                    let message = (lastError as? Throwable)?.userFriendlyMessage ?? lastError?.localizedDescription ?? "Unknown bad request error"
+                    appiumLogger.warning("\(message)")
 
                 default:
                     lastError = AppiumError.invalidResponse("\(fileId) -- Failed to click element \(elementId): HTTP \(response.status).")
-                    let errorDescription = (lastError as? Throwable)?.userFriendlyMessage ?? lastError?.localizedDescription ?? "Unknown server error"
-                    appiumLogger.warning("\(errorDescription)")
+                    let message = (lastError as? Throwable)?.userFriendlyMessage ?? lastError?.localizedDescription ?? "Unknown server error"
+                    appiumLogger.warning("\(message)")
                 }
             } catch let error {
                 lastError = error
-                let specificErrorDescription = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
-                appiumLogger.warning("\(fileId) -- Error during click API call for \(elementId): \(specificErrorDescription).")
+                let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
+                appiumLogger.warning("\(fileId) -- Error during click API call for \(elementId): \(message).")
             }
 
             if Date().timeIntervalSince(date) >= wait - pollInterval {
@@ -248,7 +250,8 @@ public struct Session: Sendable {
         do {
             elementId = try await select(element, pollInterval: pollInterval, file: file, line: line, function: function)
         } catch {
-            appiumLogger.error("\(fileId) -- Failed to find element: \(error)")
+            let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
+            appiumLogger.error("\(fileId) -- Failed to find element: \(message)")
             throw error
         }
 
@@ -259,7 +262,8 @@ public struct Session: Sendable {
             let response = try await executeRequest(request, description: "typing into element")
             try validateOKResponse(response, errorMessage: "\(fileId) -- Failed to type into element")
         } catch {
-            throw AppiumError.elementNotFound("\(fileId) -- Failed typing into element: \(error.localizedDescription)")
+            let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
+            throw AppiumError.elementNotFound("\(fileId) -- Failed typing into element: \(message)")
         }
     }
 
@@ -277,7 +281,8 @@ public struct Session: Sendable {
             do {
                 return try await selectUnsafe(element)
             } catch {
-                appiumLogger.debug("\(fileId) -- Retry: \(error.localizedDescription)")
+                let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
+                appiumLogger.debug("\(fileId) -- Retry: \(message)")
                 try await Wait.sleep(for: UInt64(pollInterval))
             }
         }

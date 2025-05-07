@@ -5,13 +5,13 @@ import SwiftAppium
 
 public class ExampleTest: @unchecked Sendable, Normalizable {
     public let client: Client!
-    public var session: Session!
+    public var sessionModel: SessionModel!
     public var device: Driver
     
     public init(_ device: Driver) async throws {
         self.client = Client()
         self.device = device
-        self.session = try await sessionCall(client: client.client)
+        self.sessionModel = try await SessionModel(client: client.client, device: device)
     }
     
     public var test: ExampleTest {
@@ -21,161 +21,8 @@ public class ExampleTest: @unchecked Sendable, Normalizable {
         return currentTest
     }
     
-    public var clientModel: ClientModel {
-        return ClientModel()
-    }
-    
-    public var sessionModel: SessionModel {
-        return SessionModel()
-    }
-    
-    func sessionCall(client: HTTPClient) async throws -> Session {
-        do {
-            if let existingSession = try await getSession(client: client, device: device) {
-                webLogger.info("We already have a session")
-                session = existingSession
-                return session
-            } else {
-                webLogger.info("We need a new session")
-                session = try await createTestSession(client: client, device: device)
-                return session
-            }
-        } catch {
-            try await client.shutdown()
-            throw error
-        }
-    }
-    
-    func createTestSession(
-        client: HTTPClient,
-        device: Driver
-    ) async throws -> Session {
-
-        let requiredCapabilities: [String: Any] = [
-            "platformName": device.platformName,
-            "appium:platformVersion": device.platformVersion,
-            "appium:newCommandTimeout": 3600,
-            "appium:automationName": device.automationName,
-        ]
-
-        let conditionalCapabilities: [String: Any?] = [
-            "appium:usePreinstalledWDA": device.usePreinstalledWDA,
-            "appium:deviceName": device.deviceName,
-            "appium:udid": device.udid,
-            "appium:app": device.app,
-            "appium:browserName": device.browserName,
-            "appium:wdaLocalPort": device.wdaLocalPort,
-            "appium:espressoBuildConfig": device.espressoBuildConfig,
-            "appium:forceEspressoRebuild": device.forceEspressoRebuild
-        ]
-
-        let capabilities = requiredCapabilities.merging(
-            conditionalCapabilities.compactMapValues { $0 },
-            uniquingKeysWith: { current, _ in current }
-        )
-
-        let payload: [String: Any] = [
-            "capabilities": [
-                "alwaysMatch": capabilities
-            ]
-        ]
-
-        do {
-            let requestBody = try JSONSerialization.data(
-                withJSONObject: payload, options: [])
-            
-            let normalizedData = try normalizeJSON(requestBody)
-
-            let expectedRequest: String
-            if device.platformName == Platform.browser.rawValue {
-                expectedRequest =
-                "{\"capabilities\":{\"alwaysMatch\":{\"appium:automationName\":\"Chromium\",\"appium:browserName\":\"chrome\",\"appium:newCommandTimeout\":3600,\"appium:platformVersion\":\"\(device.platformVersion)\",\"platformName\":\"\(device.platformName)\"}}}"
-            } else if device.platformName == Platform.iOS.rawValue {
-                expectedRequest =
-                    "{\"capabilities\":{\"alwaysMatch\":{\"appium:app\":\"\(device.app!)\",\"appium:automationName\":\"XCUITest\",\"appium:deviceName\":\"\(device.deviceName!)\",\"appium:newCommandTimeout\":3600,\"appium:platformVersion\":\"\(device.platformVersion)\",\"appium:udid\":\"\(device.udid!)\",\"appium:usePreinstalledWDA\":\(device.usePreinstalledWDA!),\"appium:wdaLocalPort\":\(device.wdaLocalPort!),\"platformName\":\"iOS\"}}}"
-            } else {
-                expectedRequest = normalizedData
-            }
-
-            do {
-                try #require(normalizedData == expectedRequest)
-            } catch {
-                try await client.shutdown()
-            }
-            let url = "\(API.serverURL)/session"
-            let expectedURL = "\(API.serverURL)/session"
-            do {
-                try #require(url == expectedURL)
-            } catch {
-                try await client.shutdown()
-            }
-            var request = try HTTPClient.Request(
-                url: url, method: .POST)
-
-            request.headers.add(name: "Content-Type", value: "application/json")
-            request.body = .data(requestBody)
-            let response = try await client.execute(request: request).get()
-
-            try #require(response.status == .ok)
-            guard let byteBuffer = response.body else {
-                throw NSError(
-                    domain: "Appium", code: -1,
-                    userInfo: [NSLocalizedDescriptionKey: "No response body"]
-                )
-            }
-            let normalizedBody = try normalizeResponseBody(byteBuffer)
-
-            let expectedBody: String
-            switch device {
-            case .Chromium:
-                expectedBody =
-                    "{\"value\":{\"capabilities\":{\"acceptInsecureCerts\":false,\"browserName\":\"chrome\",\"browserVersion\":\"[BROWSER_VERSION]\",\"chrome\":{\"chromedriverVersion\":\"[CHROMEDRIVER_VERSION]\",\"userDataDir\":\"[DYNAMIC_PATH]\"},\"fedcm:accounts\":true,\"goog:chromeOptions\":{\"debuggerAddress\":\"localhost:[PORT]\"},\"networkConnectionEnabled\":false,\"pageLoadStrategy\":\"normal\",\"platformName\":\"mac\",\"proxy\":{},\"setWindowRect\":true,\"strictFileInteractability\":false,\"timeouts\":{\"implicit\":0,\"pageLoad\":300000,\"script\":30000},\"unhandledPromptBehavior\":\"dismiss and notify\",\"webauthn:extension:credBlob\":true,\"webauthn:extension:largeBlob\":true,\"webauthn:extension:minPinLength\":true,\"webauthn:extension:prf\":true,\"webauthn:virtualAuthenticators\":true},\"sessionId\":\"[SESSION_ID]\"}}"
-            default:
-                expectedBody = normalizedBody
-            }
-
-            do {
-                try #require(normalizedBody == expectedBody)
-            } catch {
-                try await client.shutdown()
-            }
-
-            if device.platformName == Platform.browser.rawValue {
-                let sessionResponse: WebResponse = try JSONDecoder().decode(
-                    WebResponse.self,
-                    from: Data(
-                        byteBuffer.getString(
-                            at: 0, length: byteBuffer.readableBytes)!.utf8))
-                let sessionId = sessionResponse.value.sessionId!
-                #expect(sessionId.isEmpty == false)
-
-                return Session(
-                    client: client, id: sessionId, platform: .browser)
-            } else if device.platformName == Platform.android.rawValue {
-                let sessionResponse: AndroidResponse = try JSONDecoder()
-                    .decode(
-                        AndroidResponse.self,
-                        from: Data(
-                            byteBuffer.getString(
-                                at: 0, length: byteBuffer.readableBytes)!.utf8))
-                let sessionId = sessionResponse.value.sessionId!
-                #expect(sessionId.isEmpty == false)
-
-                return Session(
-                    client: client, id: sessionId, platform: .android)
-            } else {
-                let sessionResponse: iOSResponse = try JSONDecoder().decode(
-                    iOSResponse.self,
-                    from: Data(
-                        byteBuffer.getString(
-                            at: 0, length: byteBuffer.readableBytes)!.utf8))
-                let sessionId = sessionResponse.value.id
-                #expect(sessionId.isEmpty == false)
-
-                return Session(
-                    client: client, id: sessionId, platform: .iOS)
-            }
-        }
+    func sessionCall(client: HTTPClient) async throws -> SessionModel {
+        return try await SessionModel(client: client, device: device)
     }
     
     func getSession(
@@ -359,18 +206,25 @@ public class ExampleTest: @unchecked Sendable, Normalizable {
             let navigatePayload = ["url": url]
             let requestBody = try JSONSerialization.data(
                 withJSONObject: navigatePayload, options: [])
-            let normalizedData = try normalizeJSON(requestBody)
+            let normalizedData = try Self.normalizeJSON(requestBody)
             let expectedRequest = "{\"url\":\"\(url)\"}"
-            #expect(normalizedData == expectedRequest)
-
-            let url = API.url(session.id)
-            let expectedURL = "\(API.serverURL)/session/\(session.id)/url"
-            #expect(url == expectedURL)
+            do {
+                try #require(normalizedData == expectedRequest)
+            } catch {
+                try await client.client.shutdown()
+            }
+            let url = "\(API.serverURL)/session"
+            let expectedURL = "\(API.serverURL)/session"
+            do {
+                try #require(url == expectedURL)
+            } catch {
+                try await client.client.shutdown()
+            }
 
             var request = try HTTPClient.Request(url: url, method: .POST)
             request.headers.add(name: "Content-Type", value: "application/json")
             request.body = .data(requestBody)
-            let response = try await session.client.execute(request: request)
+            let response = try await sessionModel.client.execute(request: request)
                 .get()
             #expect(response.status == .ok)
         }
@@ -379,11 +233,11 @@ public class ExampleTest: @unchecked Sendable, Normalizable {
     public func getCurrentUrl(
     ) async throws -> String {
         let request = try HTTPClient.Request(
-            url: API.url(session.id),
+            url: API.url(sessionModel.id),
             method: .GET
         )
 
-        let response = try await session.client.execute(request: request).get()
+        let response = try await sessionModel.client.execute(request: request).get()
         guard let body = response.body else {
             throw NSError(
                 domain: "Appium",

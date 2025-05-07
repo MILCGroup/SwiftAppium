@@ -1,7 +1,7 @@
 import Foundation
 @testable import SwiftAppium
 
-class MockAppium: AppiumClient, AppiumSession {
+class MockAppium: @unchecked Sendable, AppiumSession {
     var mockResponses: [String: Any] = [:]
     var mockErrors: [String: Error] = [:]
     var callCounts: [String: Int] = [:]
@@ -157,4 +157,16 @@ class MockAppium: AppiumClient, AppiumSession {
         mockErrors.removeAll()
         callCounts.removeAll()
     }
+    
+    func executeScript(script: String, args: [Any]) async throws -> Any? { throw AppiumError.invalidResponse("Not implemented in mock") }
+    func hideKeyboard() async throws { throw AppiumError.invalidResponse("Not implemented in mock") }
+    func click(_ element: Element, _ wait: TimeInterval, pollInterval: TimeInterval, andWaitFor: Element?, date: Date) async throws { throw AppiumError.invalidResponse("Not implemented in mock") }
+    func type(_ element: Element, text: String, pollInterval: TimeInterval) async throws { throw AppiumError.invalidResponse("Not implemented in mock") }
+    func select(_ element: Element, _ timeout: TimeInterval, pollInterval: TimeInterval) async throws -> String { throw AppiumError.invalidResponse("Not implemented in mock") }
+    func has(_ times: Int, _ text: String, timeout: TimeInterval, pollInterval: TimeInterval) async throws -> Bool { throw AppiumError.invalidResponse("Not implemented in mock") }
+    func has(_ text: String, timeout: TimeInterval, pollInterval: TimeInterval) async throws -> Bool { throw AppiumError.invalidResponse("Not implemented in mock") }
+    func hasNo(_ text: String, timeout: TimeInterval, pollInterval: TimeInterval) async throws -> Bool { throw AppiumError.invalidResponse("Not implemented in mock") }
+    func isChecked(_ element: Element) async throws -> Bool { throw AppiumError.invalidResponse("Not implemented in mock") }
+    func value(_ element: Element) async throws -> Double { throw AppiumError.invalidResponse("Not implemented in mock") }
+    func isVisible(_ element: Element) async throws -> Bool { throw AppiumError.invalidResponse("Not implemented in mock") }
 } 

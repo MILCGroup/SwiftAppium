@@ -2,15 +2,21 @@ import Testing
 @testable import SwiftAppium
 import AsyncHTTPClient
 
-enum TestError: Error {
+enum TestError: Throwable {
     case expectedError
+    
+    var userFriendlyMessage: String {
+        switch self {
+        case .expectedError:
+            return "An expected error occurred during testing"
+        }
+    }
 }
 
 @Suite("Model Tests")
 struct ModelTests {
     private var session: Session?
     private var element: Element?
-    private var client: ClientModel?
     private var mockClient: MockAppium?
     private var httpClient: HTTPClient?
     
