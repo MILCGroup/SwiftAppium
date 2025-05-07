@@ -189,11 +189,15 @@ public struct Session: Sendable {
 
                 case .badRequest:
                     lastError = AppiumError.invalidResponse("\(fileId) -- Bad request clicking element \(elementId).")
-                    appiumLogger.warning(lastError!.localizedDescription!)
+                    if let errorDescription = lastError?.localizedDescription {
+                        appiumLogger.warning("\(errorDescription)")
+                    }
 
                 default:
                     lastError = AppiumError.invalidResponse("\(fileId) -- Failed to click element \(elementId): HTTP \(response.status).")
-                    appiumLogger.warning(lastError!.localizedDescription!)
+                    if let errorDescription = lastError?.localizedDescription {
+                        appiumLogger.warning("\(errorDescription)")
+                    }
                 }
             } catch let error {
                 lastError = error
