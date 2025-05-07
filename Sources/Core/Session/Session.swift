@@ -136,7 +136,7 @@ public struct Session: Sendable {
         date: Date = Date()
     ) async throws {
         let fileId = "\(function) in \(file):\(line)"
-        let elementId = try await select(element, wait, pollInterval: pollInterval)
+        let elementId = try await select(element, wait, pollInterval: pollInterval, file: file, line: line, function: function)
 
         let request = try makeRequest(url: API.click(elementId, id), method: .POST)
 
