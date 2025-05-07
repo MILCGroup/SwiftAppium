@@ -12,7 +12,7 @@ public enum Environment {
 }
 
 public extension Trait where Self == SessionServerTrait {
-    static func server(_ url: String) -> Self {
+    static func server(_ url: String = "http://localhost:4723") -> Self {
         Self(serverURL: url)
     }
 }
@@ -20,7 +20,7 @@ public extension Trait where Self == SessionServerTrait {
 public struct SessionServerTrait: SuiteTrait, TestScoping {
     public let serverURL: String
 
-    public init(serverURL: String = "http://localhost:4723") {
+    public init(serverURL: String) {
         self.serverURL = serverURL
     }
 
