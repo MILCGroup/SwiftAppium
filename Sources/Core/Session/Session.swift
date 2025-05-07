@@ -177,7 +177,7 @@ public struct Session: Sendable {
         let fileId = "\(function) in \(file):\(line)"
         let elementId: String
         do {
-            elementId = try await select(element, pollInterval: pollInterval)
+            elementId = try await select(element, pollInterval: pollInterval, file: file, line: line, function: function)
         } catch {
             appiumLogger.error("\(fileId) -- Failed to find element: \(error)")
             throw error
