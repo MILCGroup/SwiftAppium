@@ -130,8 +130,8 @@ public struct Session: Sendable {
         _ wait: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay,
         file: String = #file,
-    line: UInt = #line,
-    function: StaticString = #function,
+        line: UInt = #line,
+        function: StaticString = #function,
         andWaitFor: Element? = nil,
         date: Date = Date()
     ) async throws {
@@ -149,7 +149,7 @@ public struct Session: Sendable {
                 appiumLogger.error("\(fileId) -- Bad request clicking element \(elementId)")
                 try await Wait.sleep(for: UInt64(pollInterval))
                 if Date().timeIntervalSince(date) < wait {
-                    try await click(element, wait, pollInterval: pollInterval, andWaitFor: andWaitFor, date: date)
+                    try await click(element, wait, pollInterval: pollInterval, file: file, line: line, function: function, andWaitFor: andWaitFor, date: date)
                 } else {
                     throw AppiumError.timeoutError("Timed out clicking element \(elementId)")
                 }
