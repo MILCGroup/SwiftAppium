@@ -136,34 +136,81 @@ public struct Session: Sendable {
         date: Date = Date()
     ) async throws {
         let fileId = "\(function) in \(file):\(line)"
-        let elementId = try await select(element, wait, pollInterval: pollInterval, file: file, line: line, function: function)
+        var lastError: Error?
 
-        let request = try makeRequest(url: API.click(elementId, id), method: .POST)
+        while Date().timeIntervalSince(date) < wait {
+            let iterationStartTime = Date()
+            let remainingOverallTimeForIteration = wait - iterationStartTime.timeIntervalSince(date)
 
-        do {
-            let response = try await executeRequest(request, description: "clicking element")
-            switch response.status {
-            case .ok:
+            if remainingOverallTimeForIteration <= pollInterval / 2 {
+                appiumLogger.warning("\(fileId) -- Not enough time remaining for a full attempt for \(element.selector.wrappedValue).")
+                lastError = AppiumError.timeoutError("\(fileId) -- Not enough time remaining for click attempt on \(element.selector.wrappedValue).")
                 break
-            case .badRequest:
-                appiumLogger.error("\(fileId) -- Bad request clicking element \(elementId)")
+            }
+
+            var elementId: String
+            do {
+                appiumLogger.debug("\(fileId) -- Selecting element \(element.selector.wrappedValue) with up to \(remainingOverallTimeForIteration)s remaining.")
+                elementId = try await select(element, remainingOverallTimeForIteration, pollInterval: pollInterval, file: file, line: line, function: function)
+            } catch let error {
+                lastError = error
+                appiumLogger.warning("\(fileId) -- Failed to select element \(element.selector.wrappedValue) during click: \(error.localizedDescription)")
+                if Date().timeIntervalSince(date) >= wait - pollInterval { break }
                 try await Wait.sleep(for: UInt64(pollInterval))
-                if Date().timeIntervalSince(date) < wait {
-                    try await click(element, wait, pollInterval: pollInterval, file: file, line: line, function: function, andWaitFor: andWaitFor, date: date)
-                } else {
-                    throw AppiumError.timeoutError("Timed out clicking element \(elementId)")
+                continue
+            }
+
+            let request = try makeRequest(url: API.click(elementId, id), method: .POST)
+            do {
+                appiumLogger.debug("\(fileId) -- Attempting click on element \(elementId)")
+                let response = try await executeRequest(request, description: "clicking element \(elementId)")
+
+                switch response.status {
+                case .ok:
+                    appiumLogger.info("\(fileId) -- Click on \(elementId) reported OK by server.")
+                    if let elementToWaitFor = andWaitFor {
+                        let timeRemainingForWaitFor = wait - Date().timeIntervalSince(date)
+                        if timeRemainingForWaitFor <= 0 {
+                            appiumLogger.error("\(fileId) -- Clicked \(elementId), but no time left to wait for \(elementToWaitFor.selector.wrappedValue).")
+                            throw AppiumError.timeoutError("\(fileId) -- Clicked \(elementId), but no time left for \(elementToWaitFor.selector.wrappedValue).")
+                        }
+                        appiumLogger.info("\(fileId) -- Waiting for \(elementToWaitFor.selector.wrappedValue) for up to \(timeRemainingForWaitFor)s.")
+                        do {
+                            _ = try await select(elementToWaitFor, timeRemainingForWaitFor, pollInterval: pollInterval, file: file, line: line, function: function)
+                            appiumLogger.info("\(fileId) -- Successfully clicked \(elementId) and found \(elementToWaitFor.selector.wrappedValue).")
+                            return
+                        } catch let waitError {
+                            appiumLogger.error("\(fileId) -- Clicked \(elementId), but \(elementToWaitFor.selector.wrappedValue) did not appear: \(waitError.localizedDescription)")
+                            throw AppiumError.timeoutError("\(fileId) -- Clicked \(elementId), but \(elementToWaitFor.selector.wrappedValue) did not appear.")
+                        }
+                    }
+                    appiumLogger.info("\(fileId) -- Successfully clicked \(elementId).")
+                    return
+
+                case .badRequest:
+                    lastError = AppiumError.invalidResponse("\(fileId) -- Bad request clicking element \(elementId).")
+                    appiumLogger.warning(lastError!.localizedDescription!)
+
+                default:
+                    lastError = AppiumError.invalidResponse("\(fileId) -- Failed to click element \(elementId): HTTP \(response.status).")
+                    appiumLogger.warning(lastError!.localizedDescription!)
                 }
-            default:
-                throw AppiumError.invalidResponse("\(fileId) -- Failed to click element: HTTP \(response.status)")
+            } catch let error {
+                lastError = error
+                appiumLogger.warning("\(fileId) -- Error during click API call for \(elementId): \(error.localizedDescription).")
             }
-        } catch {
-            appiumLogger.info("Retrying click on element: \(element.selector.wrappedValue)")
-            let response = try await executeRequest(request, description: "retry clicking element")
-            guard response.status == .ok else {
-                appiumLogger.error("\(fileId) -- Retry failed clicking element \(element.selector.wrappedValue)")
-                throw AppiumError.invalidResponse("\(fileId) -- Retry failed clicking element: HTTP \(response.status)")
+
+            if Date().timeIntervalSince(date) >= wait - pollInterval {
+                appiumLogger.info("\(fileId) -- Not enough time for another retry poll after click attempt for \(element.selector.wrappedValue).")
+                break
             }
+            appiumLogger.debug("\(fileId) -- Click attempt for \(element.selector.wrappedValue) requires retry. Sleeping for \(pollInterval)s.")
+            try await Wait.sleep(for: UInt64(pollInterval))
         }
+
+        let finalErrorMessage = "\(fileId) -- Click operation failed for \(element.selector.wrappedValue). Last error: \(lastError?.localizedDescription ?? "Timeout before completion.")"
+        appiumLogger.error(finalErrorMessage)
+        throw lastError ?? AppiumError.timeoutError(finalErrorMessage)
     }
 
     public func type(
