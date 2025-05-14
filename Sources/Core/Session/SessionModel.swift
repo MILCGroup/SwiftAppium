@@ -308,29 +308,40 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     }
 
     public func has(
-        _ times: Int, _ text: String,
-        timeout: TimeInterval = 5,
-        pollInterval: TimeInterval = Wait.retryDelay
+       _ text: String,
     ) async throws -> Bool {
         return try await session.has(
-            times, text, timeout: timeout, pollInterval: pollInterval
+             text
         )
     }
     
     public func has(
+        _ times: Int,
+        _ text: String,
+    ) async throws -> Bool {
+        return try await session.has(times, text)
+    }
+    
+    public func willHave(
         _ text: String,
         timeout: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay
     ) async throws -> Bool {
-        return try await session.has(text, timeout: timeout, pollInterval: pollInterval)
+        return try await session.willHave(text, timeout: timeout, pollInterval: pollInterval)
     }
 
     public func hasNo(
+        _ text: String
+    ) async throws -> Bool {
+        return try await session.hasNo(text)
+    }
+    
+    public func wontHave(
         _ text: String,
         timeout: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay
     ) async throws -> Bool {
-        return try await session.hasNo(text, timeout: timeout, pollInterval: pollInterval)
+        return try await session.wontHave(text, timeout: timeout, pollInterval: pollInterval)
     }
 
     public func isChecked(

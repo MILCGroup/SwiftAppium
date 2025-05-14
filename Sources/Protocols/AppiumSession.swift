@@ -31,16 +31,21 @@ public protocol AppiumSession: Sendable {
         pollInterval: TimeInterval
     ) async throws -> String
     func has(
-        _ times: Int, _ text: String,
-        timeout: TimeInterval,
-        pollInterval: TimeInterval
+        _ text: String
     ) async throws -> Bool
     func has(
+        _ times: Int,
+        _ text: String
+    ) async throws -> Bool
+    func willHave(
         _ text: String,
         timeout: TimeInterval,
         pollInterval: TimeInterval
     ) async throws -> Bool
     func hasNo(
+        _ text: String
+    ) async throws -> Bool
+    func wontHave(
         _ text: String,
         timeout: TimeInterval,
         pollInterval: TimeInterval
