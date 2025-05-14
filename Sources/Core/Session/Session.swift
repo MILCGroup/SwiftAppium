@@ -65,39 +65,6 @@ public struct Session: Sendable {
         }
     }
 
-    private func waitForHierarchy(
-        timeout: TimeInterval,
-        pollInterval: TimeInterval = Wait.retryDelay,
-        matchCondition: (String) -> Bool
-    ) async throws -> Bool {
-        let startTime = Date()
-        while Date().timeIntervalSince(startTime) < timeout {
-            do {
-                let request = try makeRequest(url: API.source(id), method: .GET)
-                let response = try await executeRequest(request, description: "fetching hierarchy")
-                try validateOKResponse(response, errorMessage: "Failed to get hierarchy")
-                
-                guard let body = response.body,
-                      let hierarchy = body.getString(at: 0, length: body.readableBytes) else {
-                    appiumLogger.warning("Failed to read hierarchy, retrying...")
-                    try await Wait.sleep(for: UInt64(pollInterval))
-                    continue
-                }
-                
-                if matchCondition(hierarchy) {
-                    return true
-                }
-
-            } catch {
-                let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
-                appiumLogger.warning("Hierarchy fetch failed: \(message)")
-            }
-
-            try await Wait.sleep(for: UInt64(pollInterval))
-        }
-        return false
-    }
-
     // MARK: - Main Functions
 
     public static func executeScript(_ session: Self, script: String, args: [Any]) async throws -> Any? {
@@ -355,18 +322,62 @@ public struct Session: Sendable {
         return doubleValue
     }
     
-    public func has(_ times: Int, _ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = Wait.retryDelay) async throws -> Bool {
-        try await waitForHierarchy(timeout: timeout, pollInterval: pollInterval) { hierarchy in
-            let occurrences = hierarchy.components(separatedBy: text).count - 1
-            return occurrences >= times
+    private func getHierarchy() async throws -> String? {
+        let request = try makeRequest(url: API.source(id), method: .GET)
+        let response = try await executeRequest(request, description: "fetching hierarchy")
+        try validateOKResponse(response, errorMessage: "Failed to get hierarchy")
+
+        guard let body = response.body else { return nil }
+        return body.getString(at: 0, length: body.readableBytes)
+    }
+    
+    private func waitForHierarchy(
+        timeout: TimeInterval,
+        pollInterval: TimeInterval = Wait.retryDelay,
+        matchCondition: (String) -> Bool
+    ) async throws -> Bool {
+        let startTime = Date()
+        while Date().timeIntervalSince(startTime) < timeout {
+            do {
+                if let hierarchy = try await getHierarchy(),
+                   matchCondition(hierarchy) {
+                    return true
+                }
+            } catch {
+                let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
+                appiumLogger.warning("Hierarchy fetch failed: \(message)")
+            }
+
+            try await Wait.sleep(for: UInt64(pollInterval))
+        }
+        return false
+    }
+    
+    public func has(_ text: String) async throws -> Bool {
+        guard let hierarchy = try await getHierarchy() else { return false }
+        return hierarchy.contains(text)
+    }
+
+    public func has(_ times: Int, _ text: String) async throws -> Bool {
+        guard let hierarchy = try await getHierarchy() else { return false }
+        let occurrences = hierarchy.components(separatedBy: text).count - 1
+        return occurrences >= times
+    }
+
+    public func willHave(_ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = Wait.retryDelay) async throws -> Bool {
+        try await waitForHierarchy(timeout: timeout, pollInterval: pollInterval) {
+                $0.contains(text)
         }
     }
-
-    public func has(_ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = Wait.retryDelay) async throws -> Bool {
-        try await waitForHierarchy(timeout: timeout, pollInterval: pollInterval) { $0.contains(text) }
+    
+    public func hasNo(_ text: String) async throws -> Bool {
+        guard let hierarchy = try await getHierarchy() else { return false }
+                return !hierarchy.contains(text)
     }
-
-    public func hasNo(_ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = Wait.retryDelay) async throws -> Bool {
-        try await waitForHierarchy(timeout: timeout, pollInterval: pollInterval) { !$0.contains(text) }
+    
+    public func wontHave(_ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = Wait.retryDelay) async throws -> Bool {
+        try await waitForHierarchy(timeout: timeout, pollInterval: pollInterval) {
+                !$0.contains(text)
+        }
     }
 }
