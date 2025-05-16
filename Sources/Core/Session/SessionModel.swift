@@ -66,7 +66,8 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
             "appium:browserName": device.browserName,
             "appium:wdaLocalPort": device.wdaLocalPort,
             "appium:espressoBuildConfig": device.espressoBuildConfig,
-            "appium:forceEspressoRebuild": device.forceEspressoRebuild
+            "appium:forceEspressoRebuild": device.forceEspressoRebuild,
+            "appium:espressoIdleTimeout": device.espressoIdleTimeout
         ]
 
         let capabilities = requiredCapabilities.merging(

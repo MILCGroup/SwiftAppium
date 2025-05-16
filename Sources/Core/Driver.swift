@@ -16,8 +16,14 @@ public enum Driver: Equatable, Sendable {
         deviceName: String, platformVersion: String, app: String,
         automationName: String)
     case Espresso(
-        deviceName: String, platformVersion: String, app: String,
-        automationName: String, espressoBuildConfig: String?, forceEspressoRebuild: Bool?)
+        deviceName: String,
+        platformVersion: String,
+        app: String,
+        automationName: String,
+        espressoBuildConfig: String?,
+        forceEspressoRebuild: Bool?,
+        espressoIdleTimeout: Int
+    )
     case Chromium(
         platformVersion: String, automationName: String, browserName: String)
 
@@ -46,7 +52,7 @@ public enum Driver: Equatable, Sendable {
     public var platformVersion: String {
         switch self {
         case .XCUITest(_, let platformVersion, _, _, _, _, _),
-            .UIAutomator(_, let platformVersion, _, _), .Espresso(_, let platformVersion, _, _, _, _),
+            .UIAutomator(_, let platformVersion, _, _), .Espresso(_, let platformVersion, _, _, _, _, _),
             .Chromium(let platformVersion, _, _):
             return platformVersion
         }
@@ -55,7 +61,7 @@ public enum Driver: Equatable, Sendable {
     public var automationName: String {
         switch self {
         case .XCUITest(_, _, _, _, let automationName, _, _),
-            .UIAutomator(_, _, _, let automationName), .Espresso(_, _, _, let automationName, _, _),
+            .UIAutomator(_, _, _, let automationName), .Espresso(_, _, _, let automationName, _, _, _),
             .Chromium(_, let automationName, _):
             return automationName
         }
@@ -73,7 +79,7 @@ public enum Driver: Equatable, Sendable {
     public var deviceName: String? {
         switch self {
         case .XCUITest(let deviceName, _, _, _, _, _, _),
-            .UIAutomator(let deviceName, _, _, _), .Espresso(let deviceName, _, _, _, _, _):
+            .UIAutomator(let deviceName, _, _, _), .Espresso(let deviceName, _, _, _, _, _, _):
             return deviceName
         default:
             return nil
@@ -92,7 +98,7 @@ public enum Driver: Equatable, Sendable {
     public var app: String? {
         switch self {
         case .XCUITest(_, _, _, let app, _, _, _),
-            .UIAutomator(_, _, let app, _), .Espresso(_, _, let app, _, _, _):
+            .UIAutomator(_, _, let app, _), .Espresso(_, _, let app, _, _, _, _):
             return app
         default:
             return nil
@@ -119,17 +125,26 @@ public enum Driver: Equatable, Sendable {
     
     public var espressoBuildConfig: String? {
         switch self {
-        case .Espresso(_, _, _, _, let espressoBuildConfig, _):
+        case .Espresso(_, _, _, _, let espressoBuildConfig, _, _):
             return espressoBuildConfig
         default:
             return nil
         }
     }
-
+    
     public var forceEspressoRebuild: Bool? {
         switch self {
-        case .Espresso(_, _, _, _, _, let forceEspressoRebuild):
+        case .Espresso(_, _, _, _, _, let forceEspressoRebuild, _):
             return forceEspressoRebuild
+        default:
+            return nil
+        }
+    }
+    
+    public var espressoIdleTimeout: Int? {
+        switch self {
+        case .Espresso(_, _, _, _, _, _, let espressoIdleTimeout):
+            return espressoIdleTimeout
         default:
             return nil
         }
