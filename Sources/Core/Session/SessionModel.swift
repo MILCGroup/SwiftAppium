@@ -54,7 +54,7 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
         let requiredCapabilities: [String: Any] = [
             "platformName": device.platformName,
             "appium:platformVersion": device.platformVersion,
-            "appium:newCommandTimeout": 3600,
+            "appium:newCommandTimeout": 300000,
             "appium:automationName": device.automationName,
         ]
 
