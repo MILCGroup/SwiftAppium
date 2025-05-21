@@ -30,24 +30,3 @@ public struct LogData {
     
     public var fileId: String { "\(function) in \(file):\(line)" }
 }
-
-extension Logger {
-    public func debug(_ message: String, logData: LogData) {
-        self.debug("\(logData.fileId) -- \(message)")
-    }
-    public func info(_ message: String, logData: LogData) {
-        self.info("\(logData.fileId) -- \(message)")
-    }
-    public func notice(_ message: String, logData: LogData) {
-        self.notice("\(logData.fileId) -- \(message)")
-    }
-    public func warning(_ message: String, logData: LogData) {
-        self.warning("\(logData.fileId) -- \(message)")
-    }
-    public func error(_ message: String, logData: LogData) {
-        self.error("\(logData.fileId) -- \(message)")
-    }
-    public func critical(_ message: String, logData: LogData) {
-        self.critical("\(logData.fileId) -- \(message)")
-    }
-}
