@@ -9,13 +9,15 @@ import OSLog
 
 @discardableResult
 public func logger(
-    subsytem: String = #function,
-    category: Int = #line
+    _ message: String = "",
+    level: OSLogType = .info,
+    subsystem: String = #function,
+    file: StaticString = #file,
+    line: Int = #line
 ) -> Logger {
-    Logger(
-        subsystem: subsytem,
-        category: String(category)
-    )
+    let logger = Logger(subsystem: subsystem, category: "\(file):\(line)")
+    logger.log(level: level, "\(message, privacy: .private)")
+    return logger
 }
 
 public let iOSLogger = Logger(subsystem: "SwiftAppium", category: "iOS")
