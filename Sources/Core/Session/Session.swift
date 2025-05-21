@@ -3,7 +3,8 @@
 //  SwiftAppium
 //  https://github.com/milcgroup/SwiftAppium
 //  See LICENSE for information
-//[]
+//
+
 import Foundation
 import NIOHTTP1
 import AsyncHTTPClient
