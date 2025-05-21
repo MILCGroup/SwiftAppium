@@ -41,12 +41,12 @@ public struct Session: Sendable {
         return request
     }
 
-    private func executeRequest(_ request: HTTPClient.Request, description: String, file: StaticString = #file, line: UInt = #line, function: StaticString = #function) async throws -> HTTPClient.Response {
+    private func executeRequest(_ request: HTTPClient.Request, description: String, logData: LogData = LogData()) async throws -> HTTPClient.Response {
         do {
             return try await client.execute(request: request).get()
         } catch {
             let userMessage = (error as? Throwable)?.userFriendlyMessage ?? "An unexpected error occurred: \(error.localizedDescription)"
-            appiumLogger.error(userMessage, logData: LogData(file: file, line: line, function: function))
+            appiumLogger.error(userMessage, logData: logData)
             throw error
         }
     }
@@ -67,8 +67,8 @@ public struct Session: Sendable {
 
     // MARK: - Main Functions
 
-    public static func executeScript(_ session: Self, script: String, args: [Any], file: StaticString = #file, line: UInt = #line, function: StaticString = #function) async throws -> Any? {
-        appiumLogger.info("Running script in session \(session.id)", logData: LogData(file: file, line: line, function: function))
+    public static func executeScript(_ session: Self, script: String, args: [Any], logData: LogData = LogData()) async throws -> Any? {
+        appiumLogger.info("Running script in session \(session.id)", logData: logData)
         let dictionary: [String: Any] = [
             "script": script,
             "args": args
@@ -76,7 +76,7 @@ public struct Session: Sendable {
 
         let body = try JSONSerialization.data(withJSONObject: dictionary, options: [])
         let request = try session.makeRequest(url: API.execute(session.id), method: .POST, body: body)
-        let response = try await session.executeRequest(request, description: "executing script", file: file, line: line, function: function)
+        let response = try await session.executeRequest(request, description: "executing script", logData: logData)
         try session.validateOKResponse(response, errorMessage: "Failed to execute script")
 
         if let responseData = response.body {
@@ -86,19 +86,19 @@ public struct Session: Sendable {
         return nil
     }
 
-    public static func hideKeyboard(_ session: Self, file: StaticString = #file, line: UInt = #line, function: StaticString = #function) async throws {
-        appiumLogger.info("Requesting to hide keyboard in session \(session.id)", logData: LogData(file: file, line: line, function: function))
+    public static func hideKeyboard(_ session: Self, logData: LogData = LogData()) async throws {
+        appiumLogger.info("Requesting to hide keyboard in session \(session.id)", logData: logData)
         let request = try session.makeRequest(url: API.hideKeyboard(session.id), method: .POST)
-        let response = try await session.executeRequest(request, description: "hiding keyboard", file: file, line: line, function: function)
+        let response = try await session.executeRequest(request, description: "hiding keyboard", logData: logData)
         try session.validateOKResponse(response, errorMessage: "Failed to hide keyboard")
-        appiumLogger.info("Keyboard was hidden successfully.", logData: LogData(file: file, line: line, function: function))
+        appiumLogger.info("Keyboard was hidden successfully.", logData: logData)
     }
     
     public func click(
         _ element: Element,
         _ timeout: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay,
-        logData: LogData = LogData(file: #file, line: #line, function: #function),
+        logData: LogData = LogData(),
         andWaitFor: Element? = nil,
         date: Date = Date()
     ) async throws {
@@ -138,7 +138,7 @@ public struct Session: Sendable {
             let request = try makeRequest(url: API.click(elementId, id), method: .POST)
             do {
                 appiumLogger.debug("Attempting to click element \(elementId)", logData: logData)
-                let response = try await executeRequest(request, description: "clicking element \(elementId)", file: logData.file, line: logData.line, function: logData.function)
+                let response = try await executeRequest(request, description: "clicking element \(elementId)", logData: logData)
                 switch response.status {
                 case .ok:
                     appiumLogger.info("Click succeeded for \(elementId)", logData: logData)
@@ -193,7 +193,7 @@ public struct Session: Sendable {
         _ element: Element,
         text: String,
         pollInterval: TimeInterval = Wait.retryDelay,
-        logData: LogData = LogData(file: #file, line: #line, function: #function)
+        logData: LogData = LogData()
     ) async throws {
         let fileId = "\(logData.function) in \(logData.file):\(logData.line)"
         let elementId: String
@@ -209,7 +209,7 @@ public struct Session: Sendable {
         let request = try makeRequest(url: API.value(elementId, id), method: .POST, body: requestBody)
 
         do {
-            let response = try await executeRequest(request, description: "typing into element", file: logData.file, line: logData.line, function: logData.function)
+            let response = try await executeRequest(request, description: "typing into element", logData: logData)
             try validateOKResponse(response, errorMessage: "\(fileId) -- Failed to type into element")
         } catch {
             let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
@@ -221,7 +221,7 @@ public struct Session: Sendable {
         _ element: Element,
         _ timeout: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay,
-        logData: LogData = LogData(file: #file, line: #line, function: #function)
+        logData: LogData = LogData()
     ) async throws -> String {
         let fileId = "\(logData.function) in \(logData.file):\(logData.line)"
         let startTime = Date()
@@ -241,13 +241,13 @@ public struct Session: Sendable {
         )
     }
     
-    private func selectUnsafe(_ element: Element, logData: LogData = LogData(file: #file, line: #line, function: #function)) async throws -> String {
+    private func selectUnsafe(_ element: Element, logData: LogData = LogData()) async throws -> String {
         let body = try encodeJSON([
             "using": element.strategy.rawValue,
             "value": element.selector.wrappedValue
         ])
         let request = try makeRequest(url: API.element(id), method: .POST, body: body)
-        let response = try await executeRequest(request, description: "finding element unsafe", file: logData.file, line: logData.line, function: logData.function)
+        let response = try await executeRequest(request, description: "finding element unsafe", logData: logData)
         try validateOKResponse(response, errorMessage: "Failed to find element")
 
         guard let body = response.body else {
@@ -259,10 +259,10 @@ public struct Session: Sendable {
         return elementResponse.value.elementId
     }
     
-    public func isVisible(_ element: Element, logData: LogData = LogData(file: #file, line: #line, function: #function)) async throws -> Bool {
+    public func isVisible(_ element: Element, logData: LogData = LogData()) async throws -> Bool {
         let elementId = try await select(element, logData: logData)
         let request = try makeRequest(url: API.displayed(elementId, id), method: .GET)
-        let response = try await executeRequest(request, description: "checking visibility", file: logData.file, line: logData.line, function: logData.function)
+        let response = try await executeRequest(request, description: "checking visibility", logData: logData)
         try validateOKResponse(response, errorMessage: "Failed to check visibility")
 
         guard let body = response.body else {
@@ -274,14 +274,14 @@ public struct Session: Sendable {
         return visibilityResponse.value
     }
 
-    public func isChecked(_ element: Element, logData: LogData = LogData(file: #file, line: #line, function: #function)) async throws -> Bool {
+    public func isChecked(_ element: Element, logData: LogData = LogData()) async throws -> Bool {
         return try await isVisible(element, logData: logData)
     }
 
-    public func value(_ element: Element, logData: LogData = LogData(file: #file, line: #line, function: #function)) async throws -> Double {
+    public func value(_ element: Element, logData: LogData = LogData()) async throws -> Double {
         let elementId = try await select(element, logData: logData)
         let request = try makeRequest(url: API.attributeValue(elementId, id), method: .GET)
-        let response = try await executeRequest(request, description: "getting element value", file: logData.file, line: logData.line, function: logData.function)
+        let response = try await executeRequest(request, description: "getting element value", logData: logData)
         try validateOKResponse(response, errorMessage: "Failed to get element value")
 
         guard let body = response.body,
@@ -303,9 +303,9 @@ public struct Session: Sendable {
         return doubleValue
     }
     
-    private func getHierarchy() async throws -> String? {
+    private func getHierarchy(logData: LogData = LogData()) async throws -> String? {
         let request = try makeRequest(url: API.source(id), method: .GET)
-        let response = try await executeRequest(request, description: "fetching hierarchy", file: #file, line: #line, function: #function)
+        let response = try await executeRequest(request, description: "fetching hierarchy", logData: logData)
         try validateOKResponse(response, errorMessage: "Failed to get hierarchy")
 
         guard let body = response.body else { return nil }
