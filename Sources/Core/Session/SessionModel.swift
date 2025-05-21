@@ -269,14 +269,14 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
 
     public func click(
         _ element: Element,
-        _ wait: TimeInterval = 5,
+        _ timeout: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay,
         andWaitFor: Element? = nil,
         date: Date = Date()
     ) async throws {
         try await session.click(
             element,
-            wait,
+            timeout,
             pollInterval: pollInterval,
             andWaitFor: andWaitFor,
             date: date
