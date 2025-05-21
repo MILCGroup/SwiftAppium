@@ -18,10 +18,14 @@ public struct Wait: Flexible {
     public static let maxRetries = 5
     public static let retryDelay: TimeInterval = 0.2
 
-    public static func sleep(for duration: UInt64) async throws {
-        for remaining in stride(from: duration, to: 0, by: -1) {
-            testLogger.info("Sleeping for \(remaining) more second(s)...")
-            try await Task.sleep(nanoseconds: NSEC_PER_SEC)
+    public static func sleep(for duration: UInt64) async {
+        do {
+            for remaining in stride(from: duration, to: 0, by: -1) {
+                testLogger.info("Sleeping for \(remaining) more second(s)...")
+                try await Task.sleep(nanoseconds: NSEC_PER_SEC)
+            }
+        } catch {
+            appiumLogger.error("Error sleeping: \(error)")
         }
     }
 }

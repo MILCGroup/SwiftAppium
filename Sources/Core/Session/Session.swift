@@ -124,7 +124,7 @@ public struct Session: Sendable {
                 let userMessage = (error as? Throwable)?.userFriendlyMessage ?? "Could not select element: \(error.localizedDescription)"
                 appiumLogger.warning(userMessage, logData: logData)
                 if Date().timeIntervalSince(date) >= timeout - pollInterval { break }
-                try await Wait.sleep(for: UInt64(pollInterval))
+                await Wait.sleep(for: UInt64(pollInterval))
                 continue
             }
             remainingOverallTimeForIteration = timeout - Date().timeIntervalSince(date)
@@ -180,7 +180,7 @@ public struct Session: Sendable {
                 break
             }
             appiumLogger.debug("Retrying click after waiting for \(element.selector.wrappedValue)", logData: logData)
-            try await Wait.sleep(for: UInt64(pollInterval))
+            await Wait.sleep(for: UInt64(pollInterval))
         }
         let finalErrorMessagePt1 = "Click operation failed for \(element.selector.wrappedValue)."
         let finalErrorDetail = lastError != nil ? ((lastError as? Throwable)?.userFriendlyMessage ?? lastError!.localizedDescription) : "Timeout before completion."
@@ -231,7 +231,7 @@ public struct Session: Sendable {
             } catch {
                 let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
                 appiumLogger.debug("\(fileId) -- Retry: \(message)", logData: logData)
-                try await Wait.sleep(for: UInt64(pollInterval))
+                await Wait.sleep(for: UInt64(pollInterval))
             }
         }
 
@@ -329,7 +329,7 @@ public struct Session: Sendable {
                 appiumLogger.warning("Hierarchy fetch failed: \(message)")
             }
 
-            try await Wait.sleep(for: UInt64(pollInterval))
+            await Wait.sleep(for: UInt64(pollInterval))
         }
         return false
     }
@@ -351,7 +351,8 @@ public struct Session: Sendable {
         }
     }
     
-    public func hasNo(_ text: String) async throws -> Bool {
+    public func hasNo(_ text: String, delay: UInt64 = 0) async throws -> Bool {
+        await Wait.sleep(for: delay)
         guard let hierarchy = try await getHierarchy() else { return false }
                 return !hierarchy.contains(text)
     }
