@@ -7,7 +7,8 @@
 
 import OSLog
 
-public func log(
+@discardableResult
+public func logger(
     subsytem: String = #function,
     category: Int = #line
 ) -> Logger {
