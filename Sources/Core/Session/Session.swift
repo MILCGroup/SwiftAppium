@@ -351,7 +351,7 @@ public struct Session: Sendable {
         }
     }
     
-    public func hasNo(_ text: String, delay: UInt64 = 0) async throws -> Bool {
+    public func hasNo(_ text: String, await delay: UInt64 = 0) async throws -> Bool {
         await Wait.sleep(for: delay)
         guard let hierarchy = try await getHierarchy() else { return false }
                 return !hierarchy.contains(text)
