@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 
 public protocol AppiumSession: Sendable {
     func executeScript(
@@ -15,6 +16,7 @@ public protocol AppiumSession: Sendable {
     func hideKeyboard() async throws
     func click(
         _ element: Element,
+        _ logger: Logger,
         _ wait: TimeInterval,
         pollInterval: TimeInterval,
         andWaitFor: Element?,
@@ -23,6 +25,7 @@ public protocol AppiumSession: Sendable {
     func type(
         _ element: Element,
         text: String,
+        _ logger: Logger,
         pollInterval: TimeInterval
     ) async throws
     func select(
@@ -31,22 +34,27 @@ public protocol AppiumSession: Sendable {
         pollInterval: TimeInterval
     ) async throws -> String
     func has(
-        _ text: String
+        _ text: String,
+        _ logger: Logger
     ) async throws -> Bool
     func has(
         _ times: Int,
-        _ text: String
+        _ text: String,
+        _ logger: Logger
     ) async throws -> Bool
     func willHave(
         _ text: String,
+        _ logger: Logger,
         timeout: TimeInterval,
         pollInterval: TimeInterval
     ) async throws -> Bool
     func hasNo(
-        _ text: String
+        _ text: String,
+        _ logger: Logger
     ) async throws -> Bool
     func wontHave(
         _ text: String,
+        _ logger: Logger,
         timeout: TimeInterval,
         pollInterval: TimeInterval
     ) async throws -> Bool

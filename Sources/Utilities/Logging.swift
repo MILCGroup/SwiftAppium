@@ -7,6 +7,16 @@
 
 import OSLog
 
+public func log(
+    subsytem: String = #function,
+    category: Int = #line
+) -> Logger {
+    Logger(
+        subsystem: subsytem,
+        category: String(category)
+    )
+}
+
 public let iOSLogger = Logger(subsystem: "SwiftAppium", category: "iOS")
 public let androidLogger = Logger(subsystem: "SwiftAppium", category: "Android")
 public let webLogger = Logger(subsystem: "SwiftAppium", category: "Web")

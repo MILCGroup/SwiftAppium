@@ -8,6 +8,7 @@
 import Foundation
 import AsyncHTTPClient
 import Testing
+import OSLog
 
 public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     public let client: HTTPClient
@@ -269,6 +270,7 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
 
     public func click(
         _ element: Element,
+        _ logger: Logger,
         _ timeout: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay,
         andWaitFor: Element? = nil,
@@ -276,6 +278,7 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     ) async throws {
         try await session.click(
             element,
+            logger,
             timeout,
             pollInterval: pollInterval,
             andWaitFor: andWaitFor,
@@ -286,11 +289,13 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     public func type(
         _ element: Element,
         text: String,
+        _ logger: Logger,
         pollInterval: TimeInterval = Wait.retryDelay
     ) async throws {
         try await session.type(
             element,
             text: text,
+            logger,
             pollInterval: pollInterval
         )
     }
@@ -309,39 +314,45 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
 
     public func has(
        _ text: String,
+       _ logger: Logger
     ) async throws -> Bool {
         return try await session.has(
-             text
+             text,
+             logger
         )
     }
     
     public func has(
         _ times: Int,
         _ text: String,
+        _ logger: Logger,
     ) async throws -> Bool {
-        return try await session.has(times, text)
+        return try await session.has(times, text, logger)
     }
     
     public func willHave(
         _ text: String,
+        _ logger: Logger,
         timeout: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay
     ) async throws -> Bool {
-        return try await session.willHave(text, timeout: timeout, pollInterval: pollInterval)
+        return try await session.willHave(text, logger, timeout: timeout, pollInterval: pollInterval)
     }
 
     public func hasNo(
-        _ text: String
+        _ text: String,
+        _ logger: Logger
     ) async throws -> Bool {
-        return try await session.hasNo(text)
+        return try await session.hasNo(text, logger)
     }
     
     public func wontHave(
         _ text: String,
+        _ logger: Logger,
         timeout: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay
     ) async throws -> Bool {
-        return try await session.wontHave(text, timeout: timeout, pollInterval: pollInterval)
+        return try await session.wontHave(text, logger, timeout: timeout, pollInterval: pollInterval)
     }
 
     public func isChecked(
