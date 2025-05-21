@@ -127,7 +127,7 @@ public struct Session: Sendable {
                 let userMessage = (error as? Throwable)?.userFriendlyMessage ?? "Could not select element: \(error.localizedDescription)"
                 logger.warning("\(userMessage)")
                 if Date().timeIntervalSince(date) >= timeout - pollInterval { break }
-                await Wait.sleep(for: UInt64(pollInterval))
+                await Wait.retry(for: pollInterval)
                 continue
             }
             remainingOverallTimeForIteration = timeout - Date().timeIntervalSince(date)
@@ -183,7 +183,7 @@ public struct Session: Sendable {
                 break
             }
             logger.debug("Retrying click after waiting for \(element.selector.wrappedValue)")
-            await Wait.sleep(for: UInt64(pollInterval))
+            await Wait.retry(for: pollInterval)
         }
         let finalErrorMessagePt1 = "Click operation failed for \(element.selector.wrappedValue)."
         let finalErrorDetail = lastError != nil ? ((lastError as? Throwable)?.userFriendlyMessage ?? lastError!.localizedDescription) : "Timeout before completion."
@@ -235,7 +235,7 @@ public struct Session: Sendable {
             } catch {
                 let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
                 appiumLogger.debug("\(fileId) -- Retry: \(message)")
-                await Wait.sleep(for: UInt64(pollInterval))
+                await Wait.retry(for: pollInterval)
             }
         }
 
@@ -334,7 +334,7 @@ public struct Session: Sendable {
                 logger.warning("Hierarchy fetch failed: \(message)")
             }
 
-            await Wait.sleep(for: UInt64(pollInterval))
+            await Wait.retry(for: pollInterval)
         }
         return false
     }
@@ -359,7 +359,7 @@ public struct Session: Sendable {
     public func hasNo(
         _ text: String,
         _ logger: Logger,
-        await delay: UInt64 = 0
+        await delay: Double = 0
     ) async throws -> Bool {
         await Wait.sleep(for: delay)
         guard let hierarchy = try await getHierarchy(logger) else { return false }
