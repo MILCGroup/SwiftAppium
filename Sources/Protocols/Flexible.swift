@@ -6,5 +6,5 @@
 //
 
 protocol Flexible {
-    static func sleep(for duration: UInt64) async throws
+    static func sleep(for seconds: Double) async throws
 }

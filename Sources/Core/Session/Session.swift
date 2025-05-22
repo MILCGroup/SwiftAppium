@@ -4,7 +4,9 @@
 //  https://github.com/milcgroup/SwiftAppium
 //  See LICENSE for information
 //
+
 import Foundation
+import OSLog
 import NIOHTTP1
 import AsyncHTTPClient
 
@@ -41,12 +43,12 @@ public struct Session: Sendable {
         return request
     }
 
-    private func executeRequest(_ request: HTTPClient.Request, description: String) async throws -> HTTPClient.Response {
+    private func executeRequest(_ request: HTTPClient.Request, description: String, logData: LogData = LogData()) async throws -> HTTPClient.Response {
         do {
             return try await client.execute(request: request).get()
         } catch {
-            let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
-            appiumLogger.error("Failed \(description): \(message)")
+            let userMessage = (error as? Throwable)?.userFriendlyMessage ?? "An unexpected error occurred: \(error.localizedDescription)"
+            appiumLogger.error("\(userMessage)")
             throw error
         }
     }
@@ -67,8 +69,8 @@ public struct Session: Sendable {
 
     // MARK: - Main Functions
 
-    public static func executeScript(_ session: Self, script: String, args: [Any]) async throws -> Any? {
-        appiumLogger.info("Executing script in session: \(session.id)")
+    public static func executeScript(_ session: Self, script: String, args: [Any], logData: LogData = LogData()) async throws -> Any? {
+        appiumLogger.info("Running script in session \(session.id)")
         let dictionary: [String: Any] = [
             "script": script,
             "args": args
@@ -76,7 +78,7 @@ public struct Session: Sendable {
 
         let body = try JSONSerialization.data(withJSONObject: dictionary, options: [])
         let request = try session.makeRequest(url: API.execute(session.id), method: .POST, body: body)
-        let response = try await session.executeRequest(request, description: "executing script")
+        let response = try await session.executeRequest(request, description: "executing script", logData: logData)
         try session.validateOKResponse(response, errorMessage: "Failed to execute script")
 
         if let responseData = response.body {
@@ -86,139 +88,124 @@ public struct Session: Sendable {
         return nil
     }
 
-    public static func hideKeyboard(_ session: Self) async throws {
-        appiumLogger.info("Attempting to hide keyboard in session: \(session.id)")
+    public static func hideKeyboard(_ session: Self, logData: LogData = LogData()) async throws {
+        appiumLogger.info("Requesting to hide keyboard in session \(session.id)")
         let request = try session.makeRequest(url: API.hideKeyboard(session.id), method: .POST)
-        let response = try await session.executeRequest(request, description: "hiding keyboard")
+        let response = try await session.executeRequest(request, description: "hiding keyboard", logData: logData)
         try session.validateOKResponse(response, errorMessage: "Failed to hide keyboard")
-        appiumLogger.info("Keyboard hidden successfully.")
+        appiumLogger.info("Keyboard was hidden successfully.")
     }
     
     public func click(
         _ element: Element,
-        _ wait: TimeInterval = 5,
+        _ logger: Logger,
+        _ timeout: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay,
-        file: String = #file,
-        line: UInt = #line,
-        function: StaticString = #function,
+        logData: LogData = LogData(),
         andWaitFor: Element? = nil,
         date: Date = Date()
     ) async throws {
-        let fileId = "\(function) in \(file):\(line)"
+        testLogger.info("Clicking...")
         var lastError: Error?
-
         let internalSelectPollInterval = pollInterval
-
-        while Date().timeIntervalSince(date) < wait {
+        while Date().timeIntervalSince(date) < timeout {
             let iterationStartTime = Date()
-            var remainingOverallTimeForIteration = wait - iterationStartTime.timeIntervalSince(date)
-
+            var remainingOverallTimeForIteration = timeout - iterationStartTime.timeIntervalSince(date)
             if remainingOverallTimeForIteration < (internalSelectPollInterval + 0.1) {
-                appiumLogger.warning("\(fileId) -- Not enough time remaining (\(String(format: "%.2fs", remainingOverallTimeForIteration))) for a select poll (\(internalSelectPollInterval)s) and click for \(element.selector.wrappedValue).")
+                testLogger.warning("Not enough time left to select and click \(element.selector.wrappedValue)")
                 if lastError == nil {
-                    lastError = AppiumError.timeoutError("\(fileId) -- Not enough time remaining for click attempt on \(element.selector.wrappedValue).")
+                    lastError = AppiumError.timeoutError("Not enough time left for click attempt on \(element.selector.wrappedValue).")
                 }
                 break
             }
-
             var elementId: String
             do {
-                appiumLogger.debug("\(fileId) -- Selecting element \(element.selector.wrappedValue) with timeout \(String(format: "%.2fs", remainingOverallTimeForIteration)) and internal poll \(internalSelectPollInterval)s.")
-                elementId = try await select(element, remainingOverallTimeForIteration, pollInterval: internalSelectPollInterval, file: file, line: line, function: function)
+                testLogger.debug("Selecting element \(element.selector.wrappedValue)")
+                elementId = try await select(element, remainingOverallTimeForIteration, pollInterval: internalSelectPollInterval, logData: logData)
             } catch let error {
                 lastError = error
-                let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
-                appiumLogger.warning("\(fileId) -- Failed to select element \(element.selector.wrappedValue) during click: \(message)")
-                
-                if Date().timeIntervalSince(date) >= wait - pollInterval { break }
-                try await Wait.sleep(for: UInt64(pollInterval))
+                let userMessage = (error as? Throwable)?.userFriendlyMessage ?? "Could not select element: \(error.localizedDescription)"
+                testLogger.warning("\(userMessage)")
+                if Date().timeIntervalSince(date) >= timeout - pollInterval { break }
+                await Wait.retry(for: pollInterval)
                 continue
             }
-            
-            remainingOverallTimeForIteration = wait - Date().timeIntervalSince(date)
+            remainingOverallTimeForIteration = timeout - Date().timeIntervalSince(date)
             if remainingOverallTimeForIteration <= 0.05 {
-                 appiumLogger.warning("\(fileId) -- Not enough time remaining (\(String(format: "%.2fs", remainingOverallTimeForIteration))) for click API call for \(elementId).")
-                 if lastError == nil {
-                    lastError = AppiumError.timeoutError("\(fileId) -- Not enough time for click API call on \(elementId).")
-                 }
-                 break
+                testLogger.warning("Not enough time left to send click command for \(elementId)")
+                if lastError == nil {
+                    lastError = AppiumError.timeoutError("Not enough time for click API call on \(elementId).")
+                }
+                break
             }
-
             let request = try makeRequest(url: API.click(elementId, id), method: .POST)
             do {
-                appiumLogger.debug("\(fileId) -- Attempting click on element \(elementId)")
-                let response = try await executeRequest(request, description: "clicking element \(elementId)")
-
+                testLogger.debug("Attempting to click element \(elementId)")
+                let response = try await executeRequest(request, description: "clicking element \(elementId)", logData: logData)
                 switch response.status {
                 case .ok:
-                    appiumLogger.info("\(fileId) -- Click on \(elementId) reported OK by server.")
+                    testLogger.info("Click succeeded for \(elementId)")
                     if let elementToWaitFor = andWaitFor {
-                        let timeRemainingForWaitFor = wait - Date().timeIntervalSince(date)
+                        let timeRemainingForWaitFor = timeout - Date().timeIntervalSince(date)
                         if timeRemainingForWaitFor <= internalSelectPollInterval / 2 {
-                            appiumLogger.error("\(fileId) -- Clicked \(elementId), but not enough time (\(String(format: "%.2fs",timeRemainingForWaitFor))) to wait for \(elementToWaitFor.selector.wrappedValue).")
-                            throw AppiumError.timeoutError("\(fileId) -- Clicked \(elementId), but not enough time for \(elementToWaitFor.selector.wrappedValue).")
+                            testLogger.error("Clicked, but not enough time to wait for next element \(elementToWaitFor.selector.wrappedValue)")
+                            throw AppiumError.timeoutError("Clicked \(elementId), but not enough time for \(elementToWaitFor.selector.wrappedValue).")
                         }
-                        appiumLogger.info("\(fileId) -- Waiting for \(elementToWaitFor.selector.wrappedValue) for up to \(String(format: "%.2fs",timeRemainingForWaitFor))s.")
+                        testLogger.info("Waiting for next element \(elementToWaitFor.selector.wrappedValue)")
                         do {
-                            _ = try await select(elementToWaitFor, timeRemainingForWaitFor, pollInterval: internalSelectPollInterval, file: file, line: line, function: function)
-                            appiumLogger.info("\(fileId) -- Successfully clicked \(elementId) and found \(elementToWaitFor.selector.wrappedValue).")
+                            _ = try await select(elementToWaitFor, timeRemainingForWaitFor, pollInterval: internalSelectPollInterval, logData: logData)
+                            testLogger.info("Click and wait succeeded for \(elementToWaitFor.selector.wrappedValue)")
                             return
                         } catch let waitError {
-                            let message = (waitError as? Throwable)?.userFriendlyMessage ?? waitError.localizedDescription
-                            appiumLogger.error("\(fileId) -- Clicked \(elementId), but \(elementToWaitFor.selector.wrappedValue) did not appear: \(message)")
-                            throw AppiumError.timeoutError("\(fileId) -- Clicked \(elementId), but \(elementToWaitFor.selector.wrappedValue) did not appear: \(message)")
+                            let userMessage = (waitError as? Throwable)?.userFriendlyMessage ?? "Element did not appear: \(waitError.localizedDescription)"
+                            testLogger.error("\(userMessage)")
+                            throw AppiumError.timeoutError(userMessage)
                         }
                     }
-                    appiumLogger.info("\(fileId) -- Successfully clicked \(elementId).")
+                    testLogger.info("Click succeeded for \(elementId)")
                     return
-
                 case .badRequest:
-                    lastError = AppiumError.invalidResponse("\(fileId) -- Bad request clicking element \(elementId).")
-                    let message = (lastError as? Throwable)?.userFriendlyMessage ?? lastError?.localizedDescription ?? "Unknown bad request error"
-                    appiumLogger.warning("\(message)")
-
+                    lastError = AppiumError.invalidResponse("Bad request clicking element \(elementId).")
+                    let userMessage = (lastError as? Throwable)?.userFriendlyMessage ?? "Bad request clicking element."
+                    testLogger.warning("\(userMessage)")
                 default:
-                    lastError = AppiumError.invalidResponse("\(fileId) -- Failed to click element \(elementId): HTTP \(response.status).")
-                    let message = (lastError as? Throwable)?.userFriendlyMessage ?? lastError?.localizedDescription ?? "Unknown server error"
-                    appiumLogger.warning("\(message)")
+                    lastError = AppiumError.invalidResponse("Failed to click element \(elementId): HTTP \(response.status).")
+                    let userMessage = (lastError as? Throwable)?.userFriendlyMessage ?? "Server error clicking element."
+                    testLogger.warning("\(userMessage)")
                 }
             } catch let error {
                 lastError = error
-                let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
-                appiumLogger.warning("\(fileId) -- Error during click API call for \(elementId): \(message).")
+                let userMessage = (error as? Throwable)?.userFriendlyMessage ?? "Error during click: \(error.localizedDescription)"
+                testLogger.warning("\(userMessage)")
             }
-
-            if Date().timeIntervalSince(date) >= wait - pollInterval {
-                appiumLogger.info("\(fileId) -- Not enough time for another retry poll (\(pollInterval)s) after click attempt for \(element.selector.wrappedValue).")
+            if Date().timeIntervalSince(date) >= timeout - pollInterval {
+                testLogger.info("Not enough time for another retry after click attempt for \(element.selector.wrappedValue)")
                 break
             }
-            appiumLogger.debug("\(fileId) -- Click attempt for \(element.selector.wrappedValue) requires retry. Sleeping for \(pollInterval)s.")
-            try await Wait.sleep(for: UInt64(pollInterval))
+            testLogger.debug("Retrying click after waiting for \(element.selector.wrappedValue)")
+            await Wait.retry(for: pollInterval)
         }
-
-        let finalErrorMessagePt1 = "\(fileId) -- Click operation failed for \(element.selector.wrappedValue)."
+        let finalErrorMessagePt1 = "Click operation failed for \(element.selector.wrappedValue)."
         let finalErrorDetail = lastError != nil ? ((lastError as? Throwable)?.userFriendlyMessage ?? lastError!.localizedDescription) : "Timeout before completion."
         let finalErrorMessage = "\(finalErrorMessagePt1) Last error: \(finalErrorDetail)"
-        
-        appiumLogger.error("\(finalErrorMessage)")
+        testLogger.error("\(finalErrorMessage)")
         throw lastError ?? AppiumError.timeoutError(finalErrorMessage)
     }
 
     public func type(
         _ element: Element,
         text: String,
+        _ logger: Logger,
         pollInterval: TimeInterval = Wait.retryDelay,
-        file: String = #file,
-        line: UInt = #line,
-        function: StaticString = #function
+        logData: LogData = LogData()
     ) async throws {
-        let fileId = "\(function) in \(file):\(line)"
+        let fileId = "\(logData.function) in \(logData.file):\(logData.line)"
         let elementId: String
         do {
-            elementId = try await select(element, pollInterval: pollInterval, file: file, line: line, function: function)
+            elementId = try await select(element, pollInterval: pollInterval, logData: logData)
         } catch {
             let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
-            appiumLogger.error("\(fileId) -- Failed to find element: \(message)")
+            testLogger.error("\(fileId) -- Failed to find element: \(message)")
             throw error
         }
 
@@ -226,7 +213,7 @@ public struct Session: Sendable {
         let request = try makeRequest(url: API.value(elementId, id), method: .POST, body: requestBody)
 
         do {
-            let response = try await executeRequest(request, description: "typing into element")
+            let response = try await executeRequest(request, description: "typing into element", logData: logData)
             try validateOKResponse(response, errorMessage: "\(fileId) -- Failed to type into element")
         } catch {
             let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
@@ -238,11 +225,9 @@ public struct Session: Sendable {
         _ element: Element,
         _ timeout: TimeInterval = 5,
         pollInterval: TimeInterval = Wait.retryDelay,
-        file: String = #file,
-        line: UInt = #line,
-        function: StaticString = #function
+        logData: LogData = LogData()
     ) async throws -> String {
-        let fileId = "\(function) in \(file):\(line)"
+        let fileId = "\(logData.function) in \(logData.file):\(logData.line)"
         let startTime = Date()
         while Date().timeIntervalSince(startTime) < timeout {
             do {
@@ -250,7 +235,7 @@ public struct Session: Sendable {
             } catch {
                 let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
                 appiumLogger.debug("\(fileId) -- Retry: \(message)")
-                try await Wait.sleep(for: UInt64(pollInterval))
+                await Wait.retry(for: pollInterval)
             }
         }
 
@@ -260,13 +245,13 @@ public struct Session: Sendable {
         )
     }
     
-    private func selectUnsafe(_ element: Element) async throws -> String {
+    private func selectUnsafe(_ element: Element, logData: LogData = LogData()) async throws -> String {
         let body = try encodeJSON([
             "using": element.strategy.rawValue,
             "value": element.selector.wrappedValue
         ])
         let request = try makeRequest(url: API.element(id), method: .POST, body: body)
-        let response = try await executeRequest(request, description: "finding element unsafe")
+        let response = try await executeRequest(request, description: "finding element unsafe", logData: logData)
         try validateOKResponse(response, errorMessage: "Failed to find element")
 
         guard let body = response.body else {
@@ -278,10 +263,10 @@ public struct Session: Sendable {
         return elementResponse.value.elementId
     }
     
-    public func isVisible(_ element: Element) async throws -> Bool {
-        let elementId = try await select(element)
+    public func isVisible(_ element: Element, logData: LogData = LogData()) async throws -> Bool {
+        let elementId = try await select(element, logData: logData)
         let request = try makeRequest(url: API.displayed(elementId, id), method: .GET)
-        let response = try await executeRequest(request, description: "checking visibility")
+        let response = try await executeRequest(request, description: "checking visibility", logData: logData)
         try validateOKResponse(response, errorMessage: "Failed to check visibility")
 
         guard let body = response.body else {
@@ -293,14 +278,14 @@ public struct Session: Sendable {
         return visibilityResponse.value
     }
 
-    public func isChecked(_ element: Element) async throws -> Bool {
-        return try await isVisible(element)
+    public func isChecked(_ element: Element, logData: LogData = LogData()) async throws -> Bool {
+        return try await isVisible(element, logData: logData)
     }
 
-    public func value(_ element: Element) async throws -> Double {
-        let elementId = try await select(element)
+    public func value(_ element: Element, logData: LogData = LogData()) async throws -> Double {
+        let elementId = try await select(element, logData: logData)
         let request = try makeRequest(url: API.attributeValue(elementId, id), method: .GET)
-        let response = try await executeRequest(request, description: "getting element value")
+        let response = try await executeRequest(request, description: "getting element value", logData: logData)
         try validateOKResponse(response, errorMessage: "Failed to get element value")
 
         guard let body = response.body,
@@ -322,9 +307,9 @@ public struct Session: Sendable {
         return doubleValue
     }
     
-    private func getHierarchy() async throws -> String? {
+    private func getHierarchy(_ logger: Logger, logData: LogData = LogData()) async throws -> String? {
         let request = try makeRequest(url: API.source(id), method: .GET)
-        let response = try await executeRequest(request, description: "fetching hierarchy")
+        let response = try await executeRequest(request, description: "fetching hierarchy", logData: logData)
         try validateOKResponse(response, errorMessage: "Failed to get hierarchy")
 
         guard let body = response.body else { return nil }
@@ -332,6 +317,7 @@ public struct Session: Sendable {
     }
     
     private func waitForHierarchy(
+        _ logger: Logger,
         timeout: TimeInterval,
         pollInterval: TimeInterval = Wait.retryDelay,
         matchCondition: (String) -> Bool
@@ -339,44 +325,54 @@ public struct Session: Sendable {
         let startTime = Date()
         while Date().timeIntervalSince(startTime) < timeout {
             do {
-                if let hierarchy = try await getHierarchy(),
+                if let hierarchy = try await getHierarchy(logger),
                    matchCondition(hierarchy) {
                     return true
                 }
             } catch {
                 let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
-                appiumLogger.warning("Hierarchy fetch failed: \(message)")
+                testLogger.warning("Hierarchy fetch failed: \(message)")
             }
 
-            try await Wait.sleep(for: UInt64(pollInterval))
+            await Wait.retry(for: pollInterval)
         }
         return false
     }
     
-    public func has(_ text: String) async throws -> Bool {
-        guard let hierarchy = try await getHierarchy() else { return false }
+    public func has(_ text: String, _ logger: Logger) async throws -> Bool {
+        guard let hierarchy = try await getHierarchy(logger) else { return false }
         return hierarchy.contains(text)
     }
 
-    public func has(_ times: Int, _ text: String) async throws -> Bool {
-        guard let hierarchy = try await getHierarchy() else { return false }
+    public func has(_ times: Int, _ text: String, _ logger: Logger) async throws -> Bool {
+        guard let hierarchy = try await getHierarchy(logger) else { return false }
         let occurrences = hierarchy.components(separatedBy: text).count - 1
         return occurrences >= times
     }
 
-    public func willHave(_ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = Wait.retryDelay) async throws -> Bool {
-        try await waitForHierarchy(timeout: timeout, pollInterval: pollInterval) {
+    public func willHave(_ text: String, _ logger: Logger, timeout: TimeInterval = 5, pollInterval: TimeInterval = Wait.retryDelay) async throws -> Bool {
+        try await waitForHierarchy(logger, timeout: timeout, pollInterval: pollInterval) {
                 $0.contains(text)
         }
     }
     
-    public func hasNo(_ text: String) async throws -> Bool {
-        guard let hierarchy = try await getHierarchy() else { return false }
+    public func hasNo(
+        _ text: String,
+        _ logger: Logger,
+        await delay: Double = 0
+    ) async throws -> Bool {
+        await Wait.sleep(for: delay)
+        guard let hierarchy = try await getHierarchy(logger) else { return false }
                 return !hierarchy.contains(text)
     }
     
-    public func wontHave(_ text: String, timeout: TimeInterval = 5, pollInterval: TimeInterval = Wait.retryDelay) async throws -> Bool {
-        try await waitForHierarchy(timeout: timeout, pollInterval: pollInterval) {
+    public func wontHave(
+        _ text: String,
+        _ logger: Logger,
+        timeout: TimeInterval = 5,
+        pollInterval: TimeInterval = Wait.retryDelay
+    ) async throws -> Bool {
+        try await waitForHierarchy(logger, timeout: timeout, pollInterval: pollInterval) {
                 !$0.contains(text)
         }
     }
