@@ -105,14 +105,14 @@ public struct Session: Sendable {
         andWaitFor: Element? = nil,
         date: Date = Date()
     ) async throws {
-        logger.info("Clicking...")
+        testLogger.info("Clicking...")
         var lastError: Error?
         let internalSelectPollInterval = pollInterval
         while Date().timeIntervalSince(date) < timeout {
             let iterationStartTime = Date()
             var remainingOverallTimeForIteration = timeout - iterationStartTime.timeIntervalSince(date)
             if remainingOverallTimeForIteration < (internalSelectPollInterval + 0.1) {
-                logger.warning("Not enough time left to select and click \(element.selector.wrappedValue)")
+                testLogger.warning("Not enough time left to select and click \(element.selector.wrappedValue)")
                 if lastError == nil {
                     lastError = AppiumError.timeoutError("Not enough time left for click attempt on \(element.selector.wrappedValue).")
                 }
@@ -120,19 +120,19 @@ public struct Session: Sendable {
             }
             var elementId: String
             do {
-                logger.debug("Selecting element \(element.selector.wrappedValue)")
+                testLogger.debug("Selecting element \(element.selector.wrappedValue)")
                 elementId = try await select(element, remainingOverallTimeForIteration, pollInterval: internalSelectPollInterval, logData: logData)
             } catch let error {
                 lastError = error
                 let userMessage = (error as? Throwable)?.userFriendlyMessage ?? "Could not select element: \(error.localizedDescription)"
-                logger.warning("\(userMessage)")
+                testLogger.warning("\(userMessage)")
                 if Date().timeIntervalSince(date) >= timeout - pollInterval { break }
                 await Wait.retry(for: pollInterval)
                 continue
             }
             remainingOverallTimeForIteration = timeout - Date().timeIntervalSince(date)
             if remainingOverallTimeForIteration <= 0.05 {
-                logger.warning("Not enough time left to send click command for \(elementId)")
+                testLogger.warning("Not enough time left to send click command for \(elementId)")
                 if lastError == nil {
                     lastError = AppiumError.timeoutError("Not enough time for click API call on \(elementId).")
                 }
@@ -140,55 +140,55 @@ public struct Session: Sendable {
             }
             let request = try makeRequest(url: API.click(elementId, id), method: .POST)
             do {
-                logger.debug("Attempting to click element \(elementId)")
+                testLogger.debug("Attempting to click element \(elementId)")
                 let response = try await executeRequest(request, description: "clicking element \(elementId)", logData: logData)
                 switch response.status {
                 case .ok:
-                    logger.info("Click succeeded for \(elementId)")
+                    testLogger.info("Click succeeded for \(elementId)")
                     if let elementToWaitFor = andWaitFor {
                         let timeRemainingForWaitFor = timeout - Date().timeIntervalSince(date)
                         if timeRemainingForWaitFor <= internalSelectPollInterval / 2 {
-                            logger.error("Clicked, but not enough time to wait for next element \(elementToWaitFor.selector.wrappedValue)")
+                            testLogger.error("Clicked, but not enough time to wait for next element \(elementToWaitFor.selector.wrappedValue)")
                             throw AppiumError.timeoutError("Clicked \(elementId), but not enough time for \(elementToWaitFor.selector.wrappedValue).")
                         }
-                        logger.info("Waiting for next element \(elementToWaitFor.selector.wrappedValue)")
+                        testLogger.info("Waiting for next element \(elementToWaitFor.selector.wrappedValue)")
                         do {
                             _ = try await select(elementToWaitFor, timeRemainingForWaitFor, pollInterval: internalSelectPollInterval, logData: logData)
-                            logger.info("Click and wait succeeded for \(elementToWaitFor.selector.wrappedValue)")
+                            testLogger.info("Click and wait succeeded for \(elementToWaitFor.selector.wrappedValue)")
                             return
                         } catch let waitError {
                             let userMessage = (waitError as? Throwable)?.userFriendlyMessage ?? "Element did not appear: \(waitError.localizedDescription)"
-                            logger.error("\(userMessage)")
+                            testLogger.error("\(userMessage)")
                             throw AppiumError.timeoutError(userMessage)
                         }
                     }
-                    logger.info("Click succeeded for \(elementId)")
+                    testLogger.info("Click succeeded for \(elementId)")
                     return
                 case .badRequest:
                     lastError = AppiumError.invalidResponse("Bad request clicking element \(elementId).")
                     let userMessage = (lastError as? Throwable)?.userFriendlyMessage ?? "Bad request clicking element."
-                    logger.warning("\(userMessage)")
+                    testLogger.warning("\(userMessage)")
                 default:
                     lastError = AppiumError.invalidResponse("Failed to click element \(elementId): HTTP \(response.status).")
                     let userMessage = (lastError as? Throwable)?.userFriendlyMessage ?? "Server error clicking element."
-                    logger.warning("\(userMessage)")
+                    testLogger.warning("\(userMessage)")
                 }
             } catch let error {
                 lastError = error
                 let userMessage = (error as? Throwable)?.userFriendlyMessage ?? "Error during click: \(error.localizedDescription)"
-                logger.warning("\(userMessage)")
+                testLogger.warning("\(userMessage)")
             }
             if Date().timeIntervalSince(date) >= timeout - pollInterval {
-                logger.info("Not enough time for another retry after click attempt for \(element.selector.wrappedValue)")
+                testLogger.info("Not enough time for another retry after click attempt for \(element.selector.wrappedValue)")
                 break
             }
-            logger.debug("Retrying click after waiting for \(element.selector.wrappedValue)")
+            testLogger.debug("Retrying click after waiting for \(element.selector.wrappedValue)")
             await Wait.retry(for: pollInterval)
         }
         let finalErrorMessagePt1 = "Click operation failed for \(element.selector.wrappedValue)."
         let finalErrorDetail = lastError != nil ? ((lastError as? Throwable)?.userFriendlyMessage ?? lastError!.localizedDescription) : "Timeout before completion."
         let finalErrorMessage = "\(finalErrorMessagePt1) Last error: \(finalErrorDetail)"
-        logger.error("\(finalErrorMessage)")
+        testLogger.error("\(finalErrorMessage)")
         throw lastError ?? AppiumError.timeoutError(finalErrorMessage)
     }
 
@@ -205,7 +205,7 @@ public struct Session: Sendable {
             elementId = try await select(element, pollInterval: pollInterval, logData: logData)
         } catch {
             let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
-            logger.error("\(fileId) -- Failed to find element: \(message)")
+            testLogger.error("\(fileId) -- Failed to find element: \(message)")
             throw error
         }
 
@@ -331,7 +331,7 @@ public struct Session: Sendable {
                 }
             } catch {
                 let message = (error as? Throwable)?.userFriendlyMessage ?? error.localizedDescription
-                logger.warning("Hierarchy fetch failed: \(message)")
+                testLogger.warning("Hierarchy fetch failed: \(message)")
             }
 
             await Wait.retry(for: pollInterval)

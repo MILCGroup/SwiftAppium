@@ -23,9 +23,9 @@ public struct Wait: Flexible {
 
         do {
             let nanoseconds = UInt64(seconds * 1_000_000_000)
-            testLogger.info("Sleeping for \(seconds) second(s)...")
+            testLogger.info("Sleeping for \(String(format: "%.2f", seconds)) \(seconds == 1 ? "second" : "seconds")...")
             try await Task.sleep(nanoseconds: nanoseconds)
-            testLogger.info("Woke up after \(seconds) second(s)")
+            testLogger.info("Woke up after \(String(format: "%.2f", seconds)) \(seconds == 1 ? "second" : "seconds")")
         } catch {
             appiumLogger.error("Error sleeping: \(error)")
         }
@@ -36,7 +36,7 @@ public struct Wait: Flexible {
 
         do {
             let nanoseconds = UInt64(seconds * 1_000_000_000)
-            testLogger.info("Retrying in \(seconds) second(s)...")
+            testLogger.info("Retrying in \(String(format: "%.2f", seconds)) \(seconds == 1 ? "second" : "seconds")...")
             try await Task.sleep(nanoseconds: nanoseconds)
         } catch {
             appiumLogger.error("Error retrying: \(error)")
