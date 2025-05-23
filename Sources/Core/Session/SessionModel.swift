@@ -254,19 +254,41 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
         )
     }
     
+    // MARK: - Mobile Functions
+    
+    public func longClickOn(_ element: Element) async throws {
+        try await session.longClickOn(element)
+    }
+    public func clickOn(_ element: Element) async throws {
+        try await session.clickOn(element)
+    }
+    public func scrollToBackdoor(_ element: Element, position: Int) async throws {
+        try await session.scrollToBackdoor(element, position: position)
+    }
+    public func deleteSession() async throws {
+        try await session.deleteSession()
+    }
+    public func listIdlingResource() async throws -> HTTPClient.Response {
+        try await session.listIdlingResource()
+    }
+    public func printIdlingResources() async throws {
+        try await session.printIdlingResources()
+    }
+    
+    // MARK: Main Functions
+    
     public func executeScript(
         script: String,
         args: [Any]
     ) async throws -> Any? {
-        return try await Session.executeScript(
-            session,
+        return try await session.executeScript(
             script: script,
             args: args
         )
     }
     
     public func hideKeyboard() async throws {
-        try await Session.hideKeyboard(session)
+        try await session.hideKeyboard()
     }
 
     public func click(

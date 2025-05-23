@@ -78,8 +78,12 @@ public struct API: Sendable {
     public static func fullscreen(_ sessionId: String) -> URL {
         makeURL(path(for: sessionId, additional: "/window/fullscreen"))
     }
-
+    
     public static func execute(_ sessionId: String) -> URL {
+        makeURL(path(for: sessionId, additional: "/execute"))
+    }
+
+    public static func executeSync(_ sessionId: String) -> URL {
         makeURL(path(for: sessionId, additional: "/execute/sync"))
     }
 

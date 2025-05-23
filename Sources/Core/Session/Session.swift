@@ -66,20 +66,85 @@ public struct Session: Sendable {
             throw AppiumError.invalidResponse("\(errorMessage): HTTP \(response.status)")
         }
     }
-
+    
+    // MARK: - Mobile Functions
+    public func longClickOn(_ element: Element) async throws {
+        var elementId: String
+        elementId = try await select(element)
+                                     
+        return try validateOKResponse(try await executeScript(script: "mobile: clickAction", args: [[
+            "elementId": elementId,
+            "tapper": "LONG"
+        ]]) as! HTTPClient.Response,  errorMessage: "")
+    }
+    
+    public func clickOn(_ element: Element) async throws {
+        var elementId: String
+        elementId = try await select(element)
+        
+        return try validateOKResponse(try await executeScript(script: "mobile: clickAction", args: [[
+            "elementId": elementId,
+            "tapper": "SINGLE"
+        ]]) as! HTTPClient.Response,  errorMessage: "")
+    }
+    
+    public func scrollToBackdoor(_ element: Element, position: Int) async throws {
+        var elementId: String
+        elementId = try await select(element)
+        
+        return try validateOKResponse(try await executeScript(script: "mobile: backdoor", args: [[
+            "target": "element",
+            "elementId": elementId,
+            "methods": [[
+                "name": "scrollToPosition",
+                "args": [[
+                    "value": position,
+                    "type": "int"
+                ]]
+            ]]
+        ]]) as! HTTPClient.Response,  errorMessage: "")
+    }
+    
+    public func deleteSession() async throws {
+        let request = try makeRequest(url: API.session(id), method: .DELETE)
+        try await validateOKResponse(executeRequest(request, description: "Delete session"), errorMessage: "")
+    }
+    
+    public func listIdlingResource() async throws -> HTTPClient.Response {
+        let bodyRaw: [String: Any] = [
+            "script": "mobile: listIdlingResources",
+            "args": []
+        ]
+        let body = try JSONSerialization.data(withJSONObject: bodyRaw)
+        let request = try makeRequest(url: API.execute(id), method: .POST, body: body)
+        return try await executeRequest(request, description: "List idling resource")
+    }
+    
+    public func printIdlingResources() async throws {
+        if var body = try await listIdlingResource().body {
+            let bytes = body.readBytes(length: body.readableBytes) ?? []
+            if let string = String(bytes: bytes, encoding: .utf8) {
+                print("Response body as string: \(string)")
+            } else {
+                print("Failed to decode response body to UTF-8 string.")
+            }
+        } else {
+            print("No response body.")
+        }
+    }
+    
     // MARK: - Main Functions
-
-    public static func executeScript(_ session: Self, script: String, args: [Any], logData: LogData = LogData()) async throws -> Any? {
-        appiumLogger.info("Running script in session \(session.id)")
+    public func executeScript(script: String, args: [Any], logData: LogData = LogData()) async throws -> Any? {
+        appiumLogger.info("Running script in session \(id)")
         let dictionary: [String: Any] = [
             "script": script,
             "args": args
         ]
 
         let body = try JSONSerialization.data(withJSONObject: dictionary, options: [])
-        let request = try session.makeRequest(url: API.execute(session.id), method: .POST, body: body)
-        let response = try await session.executeRequest(request, description: "executing script", logData: logData)
-        try session.validateOKResponse(response, errorMessage: "Failed to execute script")
+        let request = try makeRequest(url: API.executeSync(id), method: .POST, body: body)
+        let response = try await executeRequest(request, description: "executing script", logData: logData)
+        try validateOKResponse(response, errorMessage: "Failed to execute script")
 
         if let responseData = response.body {
             let jsonResponse = try JSONSerialization.jsonObject(with: responseData, options: []) as? [String: Any]
@@ -88,11 +153,11 @@ public struct Session: Sendable {
         return nil
     }
 
-    public static func hideKeyboard(_ session: Self, logData: LogData = LogData()) async throws {
-        appiumLogger.info("Requesting to hide keyboard in session \(session.id)")
-        let request = try session.makeRequest(url: API.hideKeyboard(session.id), method: .POST)
-        let response = try await session.executeRequest(request, description: "hiding keyboard", logData: logData)
-        try session.validateOKResponse(response, errorMessage: "Failed to hide keyboard")
+    public func hideKeyboard(logData: LogData = LogData()) async throws {
+        appiumLogger.info("Requesting to hide keyboard in session \(id)")
+        let request = try makeRequest(url: API.hideKeyboard(id), method: .POST)
+        let response = try await executeRequest(request, description: "hiding keyboard", logData: logData)
+        try validateOKResponse(response, errorMessage: "Failed to hide keyboard")
         appiumLogger.info("Keyboard was hidden successfully.")
     }
     
@@ -280,6 +345,17 @@ public struct Session: Sendable {
 
     public func isChecked(_ element: Element, logData: LogData = LogData()) async throws -> Bool {
         return try await isVisible(element, logData: logData)
+    }
+    
+    public func verify(_ element: Element, _ name: String, logData: LogData = LogData()) async throws -> Bool {
+        let elementId = try await select(element, logData: logData)
+        let request = try makeRequest(url: API.text(elementId, id), method: .GET)
+        let response = try await executeRequest(request, description: "Get Facility Title Text")
+        try validateOKResponse(response, errorMessage: "")
+        guard let json = try JSONSerialization.jsonObject(with: response.body!, options: []) as? [String: Any] else {
+            throw AppiumError.invalidResponse("Failed to parse JSON response")
+        }
+        return json["value"] as? String == name
     }
 
     public func value(_ element: Element, logData: LogData = LogData()) async throws -> Double {

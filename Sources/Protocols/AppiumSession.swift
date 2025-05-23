@@ -5,6 +5,7 @@
 //  See LICENSE for information
 //
 
+import AsyncHTTPClient
 import Foundation
 import OSLog
 
@@ -67,4 +68,10 @@ public protocol AppiumSession: Sendable {
     func isVisible(
         _ element: Element
     ) async throws -> Bool
+    func longClickOn(_ element: Element) async throws 
+    func clickOn(_ element: Element) async throws
+    func scrollToBackdoor(_ element: Element, position: Int) async throws
+    func deleteSession() async throws
+    func listIdlingResource() async throws -> HTTPClient.Response
+    func printIdlingResources() async throws
 }
