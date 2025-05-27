@@ -72,27 +72,27 @@ public struct Session: Sendable {
         var elementId: String
         elementId = try await select(element)
                                      
-        return try validateOKResponse(try await executeScript(script: "mobile: clickAction", args: [[
+        try await executeScript(script: "mobile: clickAction", args: [[
             "elementId": elementId,
             "tapper": "LONG"
-        ]]) as! HTTPClient.Response,  errorMessage: "")
+        ]])
     }
     
     public func clickOn(_ element: Element) async throws {
         var elementId: String
         elementId = try await select(element)
         
-        return try validateOKResponse(try await executeScript(script: "mobile: clickAction", args: [[
+        try await executeScript(script: "mobile: clickAction", args: [[
             "elementId": elementId,
             "tapper": "SINGLE"
-        ]]) as! HTTPClient.Response,  errorMessage: "")
+        ]])
     }
     
     public func scrollToBackdoor(_ element: Element, position: Int) async throws {
         var elementId: String
         elementId = try await select(element)
         
-        return try validateOKResponse(try await executeScript(script: "mobile: backdoor", args: [[
+        try await executeScript(script: "mobile: backdoor", args: [[
             "target": "element",
             "elementId": elementId,
             "methods": [[
@@ -102,7 +102,7 @@ public struct Session: Sendable {
                     "type": "int"
                 ]]
             ]]
-        ]]) as! HTTPClient.Response,  errorMessage: "")
+        ]])
     }
     
     public func deleteSession() async throws {
