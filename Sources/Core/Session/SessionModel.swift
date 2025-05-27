@@ -90,7 +90,7 @@ public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
         let expectedRequest: String
         if device.platformName == Platform.browser.rawValue {
             expectedRequest =
-            "{\"capabilities\":{\"alwaysMatch\":{\"appium:automationName\":\"Chromium\",\"appium:browserName\":\"chrome\",\"appium:newCommandTimeout\":3600,\"appium:platformVersion\":\"\(device.platformVersion)\",\"platformName\":\"\(device.platformName)\"}}}"
+            "{\"capabilities\":{\"alwaysMatch\":{\"appium:automationName\":\"Chromium\",\"appium:browserName\":\"chrome\",\"appium:newCommandTimeout\":300000,\"appium:platformVersion\":\"\(device.platformVersion)\",\"platformName\":\"\(device.platformName)\"}}}"
         } else if device.platformName == Platform.iOS.rawValue {
             expectedRequest =
                 "{\"capabilities\":{\"alwaysMatch\":{\"appium:app\":\"\(device.app!)\",\"appium:automationName\":\"XCUITest\",\"appium:deviceName\":\"\(device.deviceName!)\",\"appium:newCommandTimeout\":3600,\"appium:platformVersion\":\"\(device.platformVersion)\",\"appium:udid\":\"\(device.udid!)\",\"appium:usePreinstalledWDA\":\(device.usePreinstalledWDA!),\"appium:wdaLocalPort\":\(device.wdaLocalPort!),\"platformName\":\"iOS\"}}}"
