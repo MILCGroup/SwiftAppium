@@ -7,7 +7,9 @@
 
 import AsyncHTTPClient
 import Foundation
+#if os(macOS)
 import OSLog
+#endif
 
 public protocol AppiumSession: Sendable {
     func executeScript(

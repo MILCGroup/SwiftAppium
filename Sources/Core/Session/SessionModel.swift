@@ -8,7 +8,9 @@
 import Foundation
 import AsyncHTTPClient
 import Testing
+#if os(macOS)
 import OSLog
+#endif
 
 public class SessionModel: AppiumSession, @unchecked Sendable, Normalizable {
     public let client: HTTPClient

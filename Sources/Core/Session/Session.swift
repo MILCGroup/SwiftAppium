@@ -6,9 +6,19 @@
 //
 
 import Foundation
+#if os(macOS)
 import OSLog
+#endif
 import NIOHTTP1
+import NIOCore
 import AsyncHTTPClient
+
+extension ByteBuffer {
+    func getData() -> Data {
+        let bytes = getBytes(at: 0, length: readableBytes) ?? []
+        return Data(bytes)
+    }
+}
 
 public struct Session: Sendable {
     public let client: HTTPClient
@@ -146,7 +156,7 @@ public struct Session: Sendable {
         let response = try await executeRequest(request, description: "executing script", logData: logData)
         try validateOKResponse(response, errorMessage: "Failed to execute script")
 
-        if let responseData = response.body {
+        if let responseData = response.body?.getData() {
             let jsonResponse = try JSONSerialization.jsonObject(with: responseData, options: []) as? [String: Any]
             return jsonResponse?["value"]
         }
@@ -323,7 +333,7 @@ public struct Session: Sendable {
             throw AppiumError.invalidResponse("No response body while finding element")
         }
 
-        let bufferData = Data(buffer: body)
+        let bufferData = body.getData()
         let elementResponse = try decodeJSON(ElementResponse.self, from: bufferData)
         return elementResponse.value.elementId
     }
@@ -338,7 +348,7 @@ public struct Session: Sendable {
             throw AppiumError.invalidResponse("No response body for visibility")
         }
 
-        let bufferData = Data(buffer: body)
+        let bufferData = body.getData()
         let visibilityResponse = try decodeJSON(VisibilityResponse.self, from: bufferData)
         return visibilityResponse.value
     }
@@ -352,7 +362,7 @@ public struct Session: Sendable {
         let request = try makeRequest(url: API.text(elementId, id), method: .GET)
         let response = try await executeRequest(request, description: "Get Facility Title Text")
         try validateOKResponse(response, errorMessage: "")
-        guard let json = try JSONSerialization.jsonObject(with: response.body!, options: []) as? [String: Any] else {
+        guard let json = try JSONSerialization.jsonObject(with: response.body?.getData() ?? Data(), options: []) as? [String: Any] else {
             throw AppiumError.invalidResponse("Failed to parse JSON response")
         }
         return json["value"] as? String == name
