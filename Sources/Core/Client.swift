@@ -6,9 +6,7 @@
 //
 
 import AsyncHTTPClient
-import Observation
 
-@Observable
 public class Client: @unchecked Sendable {
     public let client: HTTPClient
     

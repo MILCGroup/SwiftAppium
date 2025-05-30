@@ -8,9 +8,7 @@
 import AsyncHTTPClient
 import Foundation
 import Testing
-import Observation
 
-@Observable
 public class TestModel: @unchecked Sendable {
     public let client: Client
     public let device: Driver
