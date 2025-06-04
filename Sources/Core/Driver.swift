@@ -26,7 +26,7 @@ public enum Driver: Equatable, Sendable {
     )
     case Chromium(
         platformVersion: String, automationName: String, browserName: String)
-
+    
     public var platform: Platform {
         switch self {
         case .UIAutomator, .Espresso:
@@ -45,7 +45,7 @@ public enum Driver: Equatable, Sendable {
         case .UIAutomator, .Espresso:
             return "Android"
         case .Chromium:
-            return "mac"
+            return "linux"
         }
     }
 
