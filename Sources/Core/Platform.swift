@@ -8,5 +8,5 @@
 public enum Platform: String, Codable, Equatable, Sendable {
     case android = "Android"
     case iOS
-    case browser = "mac"
+    case browser = "linux"
 }
