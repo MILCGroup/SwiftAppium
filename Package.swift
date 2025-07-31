@@ -9,6 +9,7 @@ import PackageDescription
 let package = Package(
     name: "SwiftAppium",
     platforms: [
+        .macOS(.v14)
     ],
     products: [
         .library(name: "SwiftAppium", targets: ["SwiftAppium"]),
