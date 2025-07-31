@@ -1,172 +1,155 @@
 import Foundation
+import Logging
+import AsyncHTTPClient
 @testable import SwiftAppium
 
 class MockAppium: @unchecked Sendable, AppiumSession {
     var mockResponses: [String: Any] = [:]
     var mockErrors: [String: Error] = [:]
     var callCounts: [String: Int] = [:]
-    
-    func waitForElement(
-        _ session: Session,
-        _ element: Element,
-        timeout: TimeInterval
-    ) async throws -> String {
-        let key = "waitForElement_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
-        if let error = mockErrors[key] {
-            throw error
-        }
-        if let response = mockResponses[key] as? String {
-            return response
-        }
-        throw AppiumError.elementNotFound("Element not found")
-    }
-    
-    func findElement(
-        _ session: Session,
-        _ element: Element,
-    ) async throws -> String? {
-        let key = "findElement_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
-        if let error = mockErrors[key] {
-            throw error
-        }
-        return mockResponses[key] as? String
-    }
-    
-    func containsInHierarchy(
-        _ session: Session,
-        contains text: String
-    ) async throws -> Bool {
-        let key = "containsInHierarchy_\(text)"
-        if let error = mockErrors[key] {
-            throw error
-        }
-        return mockResponses[key] as? Bool ?? false
-    }
-    
-    public func containsMultipleInHierarchy(
-        _ session: Session,
-        contains times: Int, _ text: String
-    ) async throws -> Bool {
-        let key = "containsMultipleInHierarchy_\(text)"
-        if let error = mockErrors[key] {
-            throw error
-        }
-        return mockResponses[key] as? Bool ?? false
-    }
-    
-    public func elementValue(
-        _ session: Session,
-        _ element: Element
-    ) async throws -> Double {
-        let key = "checkElementVisibility_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
-        if let error = mockErrors[key] {
-            throw error
-        }
-        return mockResponses[key] as? Double ?? 0
-    }
-    
-    func checkElementVisibility(
-        _ session: Session,
-        _ element: Element,
-    ) async throws -> Bool {
-        let key = "checkElementVisibility_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
-        if let error = mockErrors[key] {
-            throw error
-        }
-        return mockResponses[key] as? Bool ?? false
-    }
-    
-    func checkElementChecked(
-        _ session: Session,
-        _ element: Element,
-    ) async throws -> Bool {
-        let key = "checkElementChecked_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
-        if let error = mockErrors[key] {
-            throw error
-        }
-        return mockResponses[key] as? Bool ?? false
-    }
-    
-    func executeScript(
-        _ session: Session,
-        script: String,
-        args: [Any]
-    ) async throws -> Any? {
-        let key = "executeScript_\(script)"
-        if let error = mockErrors[key] {
-            throw error
-        }
-        return mockResponses[key]
-    }
-    
-    func hideKeyboard(
-        _ session: Session
-    ) async throws {
-        let key = "hideKeyboard"
-        if let error = mockErrors[key] {
-            throw error
-        }
-    }
-    
-    func clickElement(
-        _ session: Session,
-        _ element: Element,
-        _ wait: TimeInterval
-    ) async throws {
-        let key = "clickElement_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
-        if let error = mockErrors[key] {
-            throw error
-        }
-    }
-    
-    func clickUnsafeElement(
-        _ session: Session,
-        _ element: Element,
-        _ wait: TimeInterval
-    ) async throws {
-        let key = "clickElement_\(element.strategy.rawValue)_\(element.selector.wrappedValue)"
-        if let error = mockErrors[key] {
-            throw error
-        }
-    }
-    
-    func sendKeys(
-        _ session: Session,
-        _ element: Element,
-        text: String
-    ) async throws {
-        let key = "sendKeys_\(element.strategy.rawValue)_\(element.selector.wrappedValue)_\(text)"
-        if let error = mockErrors[key] {
-            throw error
-        }
-    }
-    
+
     // Helper methods for test setup
     func setMockResponse(for key: String, response: Any) {
         mockResponses[key] = response
         mockErrors.removeValue(forKey: key)
     }
-    
+
     func setMockError(for key: String, error: Error) {
         mockErrors[key] = error
         mockResponses.removeValue(forKey: key)
     }
-    
+
     func clearMocks() {
         mockResponses.removeAll()
         mockErrors.removeAll()
         callCounts.removeAll()
     }
-    
-    func executeScript(script: String, args: [Any]) async throws -> Any? { throw AppiumError.invalidResponse("Not implemented in mock") }
-    func hideKeyboard() async throws { throw AppiumError.invalidResponse("Not implemented in mock") }
-    func click(_ element: Element, _ wait: TimeInterval, pollInterval: TimeInterval, andWaitFor: Element?, date: Date) async throws { throw AppiumError.invalidResponse("Not implemented in mock") }
-    func type(_ element: Element, text: String, pollInterval: TimeInterval) async throws { throw AppiumError.invalidResponse("Not implemented in mock") }
-    func select(_ element: Element, _ timeout: TimeInterval, pollInterval: TimeInterval) async throws -> String { throw AppiumError.invalidResponse("Not implemented in mock") }
-    func has(_ times: Int, _ text: String, timeout: TimeInterval, pollInterval: TimeInterval) async throws -> Bool { throw AppiumError.invalidResponse("Not implemented in mock") }
-    func has(_ text: String, timeout: TimeInterval, pollInterval: TimeInterval) async throws -> Bool { throw AppiumError.invalidResponse("Not implemented in mock") }
-    func hasNo(_ text: String, timeout: TimeInterval, pollInterval: TimeInterval) async throws -> Bool { throw AppiumError.invalidResponse("Not implemented in mock") }
-    func isChecked(_ element: Element) async throws -> Bool { throw AppiumError.invalidResponse("Not implemented in mock") }
-    func value(_ element: Element) async throws -> Double { throw AppiumError.invalidResponse("Not implemented in mock") }
-    func isVisible(_ element: Element) async throws -> Bool { throw AppiumError.invalidResponse("Not implemented in mock") }
-} 
+
+    // MARK: - AppiumSession Conformance
+
+    func executeScript(script: String, args: [Any]) async throws -> Any? {
+        let key = "executeScript"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+        return mockResponses[key]
+    }
+
+    func hideKeyboard() async throws {
+        let key = "hideKeyboard"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+    }
+
+    func click(_ element: Element, _ logger: Logger, _ wait: TimeInterval, pollInterval: TimeInterval, andWaitFor: Element?, date: Date) async throws {
+        let key = "click"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+    }
+
+    func type(_ element: Element, text: String, _ logger: Logger, pollInterval: TimeInterval) async throws {
+        let key = "type"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+    }
+
+    func select(_ element: Element, _ timeout: TimeInterval, pollInterval: TimeInterval) async throws -> String {
+        let key = "select"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+        return mockResponses[key] as? String ?? ""
+    }
+
+    func has(_ text: String, _ logger: Logger) async throws -> Bool {
+        let key = "has"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+        return mockResponses[key] as? Bool ?? false
+    }
+
+    func has(_ times: Int, _ text: String, _ logger: Logger) async throws -> Bool {
+        let key = "has"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+        return mockResponses[key] as? Bool ?? false
+    }
+
+    func willHave(_ text: String, _ logger: Logger, timeout: TimeInterval, pollInterval: TimeInterval) async throws -> Bool {
+        let key = "willHave"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+        return mockResponses[key] as? Bool ?? false
+    }
+
+    func hasNo(_ text: String, _ logger: Logger) async throws -> Bool {
+        let key = "hasNo"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+        return mockResponses[key] as? Bool ?? true
+    }
+
+    func wontHave(_ text: String, _ logger: Logger, timeout: TimeInterval, pollInterval: TimeInterval) async throws -> Bool {
+        let key = "wontHave"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+        return mockResponses[key] as? Bool ?? true
+    }
+
+    func isChecked(_ element: Element) async throws -> Bool {
+        let key = "isChecked"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+        return mockResponses[key] as? Bool ?? false
+    }
+
+    func value(_ element: Element) async throws -> Double {
+        let key = "value"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+        return mockResponses[key] as? Double ?? 0.0
+    }
+
+    func isVisible(_ element: Element) async throws -> Bool {
+        let key = "isVisible"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+        return mockResponses[key] as? Bool ?? false
+    }
+
+    func longClickOn(_ element: Element) async throws {
+        let key = "longClickOn"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+    }
+
+    func clickOn(_ element: Element) async throws {
+        let key = "clickOn"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+    }
+
+    func scrollToBackdoor(_ element: Element, position: Int) async throws {
+        let key = "scrollToBackdoor"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+    }
+
+    func deleteSession() async throws {
+        let key = "deleteSession"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+    }
+
+    func listIdlingResource() async throws -> HTTPClient.Response {
+        let key = "listIdlingResource"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+        // This is tricky to mock. Let's throw for now.
+        throw AppiumError.invalidResponse("Not implemented in mock")
+    }
+
+    func printIdlingResources() async throws {
+        let key = "printIdlingResources"
+        callCounts[key, default: 0] += 1
+        if let error = mockErrors[key] { throw error }
+    }
+}
