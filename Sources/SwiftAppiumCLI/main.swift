@@ -106,7 +106,7 @@ struct SwiftAppiumCLI: ParsableCommand {
   }
 
   private func isPortAvailable(port: Int) -> Bool {
-    let socketFD = socket(AF_INET, SOCK_STREAM, Int32(IPPROTO_TCP))
+    let socketFD = socket(AF_INET, SOCK_STREAM, Int32(0))
     guard socketFD != -1 else { return false }
 
     defer {
