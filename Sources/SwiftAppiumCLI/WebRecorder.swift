@@ -148,6 +148,18 @@ public class WebRecorder: @unchecked Sendable {
   private var pollingTask: Task<Void, Never>?
   private let pollingInterval: TimeInterval = 1.0
 
+  // MARK: - Environment Detection
+  private var isWSL: Bool {
+    // Check if running in WSL by examining /proc/version
+    guard let versionData = try? Data(contentsOf: URL(fileURLWithPath: "/proc/version")),
+          let versionString = String(data: versionData, encoding: .utf8) else {
+      return false
+    }
+    
+    return versionString.lowercased().contains("microsoft") || 
+           versionString.lowercased().contains("wsl")
+  }
+
   // MARK: - Initialization
   public init(port: Int = 8080, appiumUrl: URL = URL(string: "http://localhost:4723/wd/hub")!) {
     self.port = port
@@ -158,6 +170,10 @@ public class WebRecorder: @unchecked Sendable {
     logger.logLevel = .info
     self.logger = logger
 
+    if isWSL {
+      logger.info("WSL environment detected - applying WSL-specific configurations")
+    }
+    
     logger.info("WebRecorder initialized on port \(port)")
   }
 
@@ -191,8 +207,17 @@ public class WebRecorder: @unchecked Sendable {
 
       logger.info("Web recorder started successfully on port \(port)")
       print("🎬 SwiftAppium Web Recorder is running!")
-      print("📱 Web interface: http://localhost:\(port)")
-      print("🛑 Press Ctrl+C to stop recording")
+      
+      if isWSL {
+        print("🐧 WSL Environment Detected")
+        print("📱 Web interface: http://localhost:\(port)")
+        print("🌐 From Windows: http://localhost:\(port)")
+        print("💡 If localhost doesn't work, try your WSL IP address")
+        print("🛑 Press Ctrl+C to stop recording")
+      } else {
+        print("📱 Web interface: http://localhost:\(port)")
+        print("🛑 Press Ctrl+C to stop recording")
+      }
       
       // Automatically open the web interface in the default browser
       await openWebInterface()
@@ -236,8 +261,15 @@ public class WebRecorder: @unchecked Sendable {
     let app = try await Application.make(env)
     self.app = app
 
-    // Configure server binding
-    app.http.server.configuration.hostname = "127.0.0.1"
+    // Configure server binding with WSL-specific handling
+    if isWSL {
+      // In WSL, bind to all interfaces to ensure accessibility from Windows
+      app.http.server.configuration.hostname = "0.0.0.0"
+      logger.info("WSL detected: binding to 0.0.0.0 for Windows accessibility")
+    } else {
+      // Native systems: bind to localhost only for security
+      app.http.server.configuration.hostname = "127.0.0.1"
+    }
     app.http.server.configuration.port = port
 
     // Configure routes first
@@ -391,26 +423,91 @@ public class WebRecorder: @unchecked Sendable {
     }
     
     #elseif canImport(Glibc)
-    // Linux
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/usr/bin/xdg-open")
-    task.arguments = [url]
-    
-    do {
-      try task.run()
-      logger.info("✅ Web interface opened in default browser")
-    } catch {
-      logger.warning("Failed to open browser automatically: \(error)")
-      print("Please manually open: \(url)")
+    // Linux/WSL
+    if isWSL {
+      // WSL-specific browser launching
+      await openWebInterfaceWSL(url: url)
+    } else {
+      // Native Linux
+      let task = Process()
+      task.executableURL = URL(fileURLWithPath: "/usr/bin/xdg-open")
+      task.arguments = [url]
+      
+      do {
+        try task.run()
+        logger.info("✅ Web interface opened in default browser")
+      } catch {
+        logger.warning("Failed to open browser automatically: \(error)")
+        print("Please manually open: \(url)")
+      }
     }
     #endif
   }
+  
+  #if canImport(Glibc)
+  private func openWebInterfaceWSL(url: String) async {
+    logger.info("WSL detected - attempting multiple browser launch methods")
+    
+    // Method 1: Try Windows browser via cmd.exe
+    do {
+      let task = Process()
+      task.executableURL = URL(fileURLWithPath: "/mnt/c/Windows/System32/cmd.exe")
+      task.arguments = ["/c", "start", url]
+      
+      try task.run()
+      task.waitUntilExit()
+      
+      if task.terminationStatus == 0 {
+        logger.info("✅ Web interface opened via Windows browser")
+        return
+      }
+    } catch {
+      logger.debug("Windows browser launch failed: \(error)")
+    }
+    
+    // Method 2: Try wslview if available
+    do {
+      let task = Process()
+      task.executableURL = URL(fileURLWithPath: "/usr/bin/wslview")
+      task.arguments = [url]
+      
+      try task.run()
+      logger.info("✅ Web interface opened via wslview")
+      return
+    } catch {
+      logger.debug("wslview launch failed: \(error)")
+    }
+    
+    // Method 3: Try xdg-open (might work with X11 forwarding)
+    do {
+      let task = Process()
+      task.executableURL = URL(fileURLWithPath: "/usr/bin/xdg-open")
+      task.arguments = [url]
+      
+      try task.run()
+      logger.info("✅ Web interface opened via xdg-open")
+      return
+    } catch {
+      logger.debug("xdg-open launch failed: \(error)")
+    }
+    
+    // Fallback: Provide manual instructions
+    logger.warning("All automatic browser launch methods failed in WSL")
+    print("🌐 WSL Browser Launch Instructions:")
+    print("   Option 1: Open your Windows browser and navigate to: \(url)")
+    print("   Option 2: Install wslu package: sudo apt install wslu")
+    print("   Option 3: Set up X11 forwarding for Linux browsers")
+    print("   Option 4: Use Windows Terminal with --wsl flag")
+  }
+  #endif
 
   // MARK: - JavaScript Injection
   private func injectRecorderScript() async throws {
     logger.info("Injecting JavaScript recorder script")
 
-    let maxRetries = 3
+    let maxRetries = isWSL ? 5 : 3  // More retries for WSL
+    let retryDelay: UInt64 = isWSL ? 2_000_000_000 : 1_000_000_000  // Longer delay for WSL
+    
     for attempt in 1...maxRetries {
       do {
         logger.debug("JavaScript injection attempt \(attempt)/\(maxRetries)")
@@ -420,8 +517,13 @@ public class WebRecorder: @unchecked Sendable {
 
         logger.info("JavaScript recorder injected successfully: \(result ?? "unknown")")
 
-        // Verify injection worked
+        // Verify injection worked with WSL-specific timeout
         try await verifyScriptInjection()
+
+        // Enable debug mode in WSL for better troubleshooting
+        if isWSL {
+          try await enableDebugMode()
+        }
 
         // Start recording automatically
         isRecording = true
@@ -431,14 +533,45 @@ public class WebRecorder: @unchecked Sendable {
 
       } catch {
         logger.warning("JavaScript injection attempt \(attempt) failed: \(error)")
+        
+        if isWSL {
+          logger.info("WSL detected - this might be due to browser security policies or timing issues")
+        }
 
         if attempt == maxRetries {
+          if isWSL {
+            logger.error("JavaScript injection failed in WSL environment. This could be due to:")
+            logger.error("1. Browser security policies (CSP)")
+            logger.error("2. Chrome running in different security context")
+            logger.error("3. Network timing issues between WSL and browser")
+            logger.error("Try: Opening browser console to check for errors")
+          }
           throw WebRecorderError.scriptInjectionFailed(error)
         }
 
-        // Wait before retry
-        try await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second
+        // Wait before retry with longer delay for WSL
+        try await Task.sleep(nanoseconds: retryDelay)
       }
+    }
+  }
+  
+  private func enableDebugMode() async throws {
+    guard let session = session else { return }
+    
+    let debugScript = """
+      if (window.swiftAppiumRecorder) {
+        window.swiftAppiumRecorder.setDebugMode(true);
+        console.log('[SwiftAppium] Debug mode enabled for WSL troubleshooting');
+        return 'Debug mode enabled';
+      }
+      return 'Recorder not found';
+    """
+    
+    do {
+      let result = try await session.executeScript(script: debugScript, args: [])
+      logger.info("Debug mode enabled: \(result ?? "unknown")")
+    } catch {
+      logger.warning("Failed to enable debug mode: \(error)")
     }
   }
 
@@ -844,6 +977,19 @@ public class WebRecorder: @unchecked Sendable {
     }
 
     do {
+      // First check if recorder is still installed (WSL browsers might reload/navigate)
+      let checkScript = "return window.swiftAppiumRecorder && window.swiftAppiumRecorder.isInstalled();"
+      let isInstalled = try await session.executeScript(script: checkScript, args: [])
+      
+      if let installed = isInstalled as? Bool, !installed {
+        logger.warning("JavaScript recorder not found - attempting re-injection")
+        if isWSL {
+          logger.info("WSL: Browser may have navigated or reloaded, re-injecting recorder")
+        }
+        try await injectRecorderScript()
+        return
+      }
+
       let script = "return window.swiftAppiumRecorder.getEvents();"
       let result = try await session.executeScript(script: script, args: [])
 
@@ -864,9 +1010,33 @@ public class WebRecorder: @unchecked Sendable {
           let event = RecordedEvent(type: type, xpath: xpath, value: value, timestamp: timestamp)
           appendEvent(event)
         }
+      } else if isWSL {
+        // In WSL, occasionally check if events are being captured at all
+        let eventCountScript = "return window.swiftAppiumRecorder ? window.swiftAppiumRecorder.getEventCount() : -1;"
+        let eventCount = try await session.executeScript(script: eventCountScript, args: [])
+        
+        if let count = eventCount as? Int, count == 0 {
+          // No events captured - this might indicate an issue
+          logger.debug("WSL: No events captured yet. Recorder status: installed")
+        }
       }
     } catch {
       logger.error("Failed to poll for events: \(error)")
+      
+      if isWSL {
+        logger.warning("WSL: Event polling failed - this might be due to:")
+        logger.warning("1. Browser security restrictions")
+        logger.warning("2. Network timing issues")
+        logger.warning("3. JavaScript execution context changes")
+        
+        // Try to re-establish connection
+        do {
+          logger.info("WSL: Attempting to re-inject recorder script")
+          try await injectRecorderScript()
+        } catch {
+          logger.error("WSL: Failed to re-inject recorder script: \(error)")
+        }
+      }
     }
   }
 
@@ -1062,19 +1232,29 @@ public class WebRecorder: @unchecked Sendable {
       )
     }
 
-    // Health check endpoint
+    // Health check endpoint with WSL diagnostics
     app.get("health") { [weak self] req async throws -> Response in
       guard let self = self else {
         throw Abort(.serviceUnavailable, reason: "WebRecorder not available")
       }
 
-      let healthData: [String: Any] = [
+      var healthData: [String: Any] = [
         "status": "healthy",
         "isRecording": self.isRecording,
         "eventCount": self.getEventCount(),
         "hasSession": self.session != nil,
         "timestamp": Date().timeIntervalSince1970,
+        "isWSL": self.isWSL
       ]
+      
+      // Add WSL-specific diagnostics
+      if self.isWSL {
+        healthData["wslDiagnostics"] = [
+          "environment": "WSL detected",
+          "networkBinding": "0.0.0.0 (WSL mode)",
+          "browserLaunch": "Multi-method fallback enabled"
+        ]
+      }
 
       let jsonData = try JSONSerialization.data(withJSONObject: healthData)
 
@@ -1083,6 +1263,51 @@ public class WebRecorder: @unchecked Sendable {
         headers: HTTPHeaders([("Content-Type", "application/json")]),
         body: .init(data: jsonData)
       )
+    }
+    
+    // WSL-specific diagnostics endpoint
+    if isWSL {
+      app.get("wsl-diagnostics") { [weak self] req async throws -> Response in
+        guard let self = self else {
+          throw Abort(.internalServerError, reason: "WebRecorder instance not available")
+        }
+        
+        var diagnostics: [String: Any] = [
+          "wslDetected": true,
+          "timestamp": Date().timeIntervalSince1970
+        ]
+        
+        // Test JavaScript recorder status
+        if let session = self.session {
+          do {
+            let testScript = """
+              return {
+                recorderInstalled: !!(window.swiftAppiumRecorder),
+                eventCount: window.swiftAppiumRecorder ? window.swiftAppiumRecorder.getEventCount() : -1,
+                eventsArray: window.swiftAppiumEvents ? window.swiftAppiumEvents.length : -1,
+                userAgent: navigator.userAgent,
+                location: window.location.href
+              };
+            """
+            
+            let result = try await session.executeScript(script: testScript, args: [])
+            diagnostics["browserStatus"] = result
+            
+          } catch {
+            diagnostics["browserError"] = error.localizedDescription
+          }
+        } else {
+          diagnostics["sessionStatus"] = "No active session"
+        }
+        
+        let jsonData = try JSONSerialization.data(withJSONObject: diagnostics)
+        
+        return Response(
+          status: .ok,
+          headers: HTTPHeaders([("Content-Type", "application/json")]),
+          body: .init(data: jsonData)
+        )
+      }
     }
 
     // Clear events endpoint
@@ -1676,6 +1901,15 @@ public class WebRecorder: @unchecked Sendable {
                               <button class="btn" onclick="exportSwiftCode()">💾 Export Swift Code</button>
                           </div>
                           
+                          \(isWSL ? """
+                          <div class="control-group">
+                              <h3>🐧 WSL Diagnostics</h3>
+                              <button class="btn" onclick="runWSLDiagnostics()">🔍 Run Diagnostics</button>
+                              <button class="btn" onclick="testRecording()">🧪 Test Recording</button>
+                              <div id="wsl-diagnostics" style="margin-top: 10px; font-size: 12px; color: #666;"></div>
+                          </div>
+                          """ : "")
+                          
 
                           
 
@@ -1896,6 +2130,74 @@ public class WebRecorder: @unchecked Sendable {
               }
               
               // Session management is now automatic - no manual functions needed
+              
+              \(isWSL ? """
+              // WSL-specific diagnostic functions
+              async function runWSLDiagnostics() {
+                  const diagnosticsDiv = document.getElementById("wsl-diagnostics");
+                  diagnosticsDiv.innerHTML = "🔍 Running WSL diagnostics...";
+                  
+                  try {
+                      const response = await fetch("/wsl-diagnostics");
+                      const data = await response.json();
+                      
+                      let html = "<strong>WSL Environment Detected</strong><br>";
+                      
+                      if (data.browserStatus) {
+                          const status = data.browserStatus;
+                          html += `📊 Recorder Status: ${status.recorderInstalled ? '✅ Installed' : '❌ Not Found'}<br>`;
+                          html += `📈 Event Count: ${status.eventCount}<br>`;
+                          html += `🌐 Location: ${status.location}<br>`;
+                          html += `🖥️ User Agent: ${status.userAgent.substring(0, 50)}...<br>`;
+                      }
+                      
+                      if (data.browserError) {
+                          html += `❌ Browser Error: ${data.browserError}<br>`;
+                      }
+                      
+                      if (data.sessionStatus) {
+                          html += `⚠️ Session: ${data.sessionStatus}<br>`;
+                      }
+                      
+                      diagnosticsDiv.innerHTML = html;
+                      
+                  } catch (error) {
+                      diagnosticsDiv.innerHTML = `❌ Diagnostics failed: ${error.message}`;
+                  }
+              }
+              
+              async function testRecording() {
+                  const diagnosticsDiv = document.getElementById("wsl-diagnostics");
+                  diagnosticsDiv.innerHTML = "🧪 Testing recording functionality...";
+                  
+                  try {
+                      const initialCount = allEvents.length;
+                      
+                      setTimeout(async () => {
+                          await updateEvents();
+                          const newCount = allEvents.length;
+                          
+                          if (newCount > initialCount) {
+                              diagnosticsDiv.innerHTML = "✅ Recording is working! New events detected.";
+                          } else {
+                              diagnosticsDiv.innerHTML = `
+                                  ⚠️ No new events detected. Possible issues:<br>
+                                  • JavaScript recorder not properly injected<br>
+                                  • Browser security policies blocking event capture<br>
+                                  • Network issues between WSL and browser<br>
+                                  <br>
+                                  💡 Try: Open browser console (F12) and check for errors
+                              `;
+                          }
+                      }, 2000);
+                      
+                      diagnosticsDiv.innerHTML = "🧪 Test in progress... Please wait 2 seconds...";
+                      
+                  } catch (error) {
+                      diagnosticsDiv.innerHTML = `❌ Test failed: ${error.message}`;
+                  }
+              }
+              """ : "")
               
               // Initialize and start periodic updates
               function initialize() {

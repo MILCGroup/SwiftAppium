@@ -17,6 +17,18 @@ import Foundation
 // Global references for signal handling
 private nonisolated(unsafe) var globalRecorder: WebRecorder?
 
+// WSL Environment Detection
+private func isWSLEnvironment() -> Bool {
+  guard let versionData = try? Data(contentsOf: URL(fileURLWithPath: "/proc/version")),
+    let versionString = String(data: versionData, encoding: .utf8)
+  else {
+    return false
+  }
+
+  return versionString.lowercased().contains("microsoft")
+    || versionString.lowercased().contains("wsl")
+}
+
 struct SwiftAppiumCLI: ParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "swiftappium",
@@ -52,6 +64,14 @@ struct SwiftAppiumCLI: ParsableCommand {
       print(
         "ERROR: Port \(port) is in use. Please free the port or specify a different one using --port <number>."
       )
+
+      // WSL-specific troubleshooting
+      if isWSLEnvironment() {
+        print("WSL Note: Port conflicts can occur between WSL and Windows.")
+        print("Try: netstat -ano | findstr :\(port) (in Windows CMD)")
+        print("Or:  sudo lsof -i :\(port) (in WSL)")
+      }
+
       throw ExitCode.failure
     }
 
@@ -62,8 +82,19 @@ struct SwiftAppiumCLI: ParsableCommand {
     }
 
     print("Starting SwiftAppium Web Recorder...")
-    print("Web UI will be available at: http://localhost:\(port)")
-    print("Appium server: \(appiumURL.absoluteString)")
+
+    if isWSLEnvironment() {
+      print("🐧 WSL Environment Detected")
+      print("Web UI will be available at:")
+      print("  - From WSL: http://localhost:\(port)")
+      print("  - From Windows: http://localhost:\(port)")
+      print("Appium server: \(appiumURL.absoluteString)")
+      print("Note: Ensure Appium server is accessible from WSL")
+    } else {
+      print("Web UI will be available at: http://localhost:\(port)")
+      print("Appium server: \(appiumURL.absoluteString)")
+    }
+
     print("Press Ctrl+C to stop recording")
 
     // Use RunLoop.main.run() to handle async code
@@ -106,7 +137,7 @@ struct SwiftAppiumCLI: ParsableCommand {
   }
 
   private func isPortAvailable(port: Int) -> Bool {
-    let socketFD = socket(AF_INET, Int32(SOCK_STREAM.rawValue), Int32(0))
+    let socketFD = socket(AF_INET, Int32(SOCK_STREAM), Int32(0))
     guard socketFD != -1 else { return false }
 
     defer {
