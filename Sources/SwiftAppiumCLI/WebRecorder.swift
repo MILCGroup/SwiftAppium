@@ -24,6 +24,15 @@ private struct RecordedEvent: Codable, Sendable {
   let xpath: String
   let value: String?
   let timestamp: Int64
+  var variableName: String?
+
+  init(type: String, xpath: String, value: String?, timestamp: Int64, variableName: String? = nil) {
+    self.type = type
+    self.xpath = xpath
+    self.value = value
+    self.timestamp = timestamp
+    self.variableName = variableName
+  }
 }
 
 // Real Appium session implementation using HTTP client
@@ -43,9 +52,9 @@ struct RealAppiumSession {
 
     do {
       let _ = try await client.execute(request, timeout: .seconds(30))
-      print("✅ Appium session \(id) deleted successfully")
+      print("Appium session \(id) deleted successfully")
     } catch {
-      print("⚠️ Failed to delete Appium session: \(error)")
+      print("Failed to delete Appium session: \(error)")
     }
   }
 
@@ -148,16 +157,20 @@ public class WebRecorder: @unchecked Sendable {
   private var pollingTask: Task<Void, Never>?
   private let pollingInterval: TimeInterval = 1.0
 
+  // MARK: - Code Generation
+  private lazy var liveCodeGenerator = LiveCodeGenerator(logger: logger)
+
   // MARK: - Environment Detection
   private var isWSL: Bool {
     // Check if running in WSL by examining /proc/version
     guard let versionData = try? Data(contentsOf: URL(fileURLWithPath: "/proc/version")),
-          let versionString = String(data: versionData, encoding: .utf8) else {
+      let versionString = String(data: versionData, encoding: .utf8)
+    else {
       return false
     }
-    
-    return versionString.lowercased().contains("microsoft") || 
-           versionString.lowercased().contains("wsl")
+
+    return versionString.lowercased().contains("microsoft")
+      || versionString.lowercased().contains("wsl")
   }
 
   // MARK: - Initialization
@@ -173,7 +186,7 @@ public class WebRecorder: @unchecked Sendable {
     if isWSL {
       logger.info("WSL environment detected - applying WSL-specific configurations")
     }
-    
+
     logger.info("WebRecorder initialized on port \(port)")
   }
 
@@ -206,19 +219,19 @@ public class WebRecorder: @unchecked Sendable {
       try await setupAppiumSession()
 
       logger.info("Web recorder started successfully on port \(port)")
-      print("🎬 SwiftAppium Web Recorder is running!")
-      
+      print("SwiftAppium Web Recorder is running!")
+
       if isWSL {
-        print("🐧 WSL Environment Detected")
-        print("📱 Web interface: http://localhost:\(port)")
-        print("🌐 From Windows: http://localhost:\(port)")
-        print("💡 If localhost doesn't work, try your WSL IP address")
-        print("🛑 Press Ctrl+C to stop recording")
+        print("WSL Environment Detected")
+        print("Web interface: http://localhost:\(port)")
+        print("From Windows: http://localhost:\(port)")
+        print("If localhost doesn't work, try your WSL IP address")
+        print("Press Ctrl+C to stop recording")
       } else {
-        print("📱 Web interface: http://localhost:\(port)")
-        print("🛑 Press Ctrl+C to stop recording")
+        print("Web interface: http://localhost:\(port)")
+        print("Press Ctrl+C to stop recording")
       }
-      
+
       // Automatically open the web interface in the default browser
       await openWebInterface()
 
@@ -285,7 +298,7 @@ public class WebRecorder: @unchecked Sendable {
     do {
       // Start the application
       try await app.startup()
-      logger.info("✅ Vapor application startup completed")
+      logger.info("Vapor application startup completed")
 
       // Start server in background - this is the key fix
       serverTask = Task { [weak self] in
@@ -301,10 +314,10 @@ public class WebRecorder: @unchecked Sendable {
       // Small delay to let server start
       try await Task.sleep(nanoseconds: 500_000_000)  // 0.5 seconds
 
-      logger.info("✅ Vapor server is now running and ready to serve requests")
+      logger.info("Vapor server is now running and ready to serve requests")
 
     } catch {
-      logger.error("❌ Failed to start Vapor server: \(error)")
+      logger.error("Failed to start Vapor server: \(error)")
       throw error
     }
   }
@@ -385,17 +398,19 @@ public class WebRecorder: @unchecked Sendable {
 
   private func setupAppiumSession() async throws {
     logger.info("Attempting to auto-connect to existing Appium sessions...")
-    
+
     do {
       // Discover available sessions
       let availableSessions = try await discoverAvailableSessions()
-      
+
       if let firstSession = availableSessions.first {
         logger.info("Found session \(firstSession), connecting automatically...")
         try await connectToSession(sessionId: firstSession)
-        logger.info("✅ Successfully auto-connected to session: \(firstSession)")
+        logger.info("Successfully auto-connected to session: \(firstSession)")
       } else {
-        logger.info("No existing Appium sessions found. Please create a session and refresh the web interface.")
+        logger.info(
+          "No existing Appium sessions found. Please create a session and refresh the web interface."
+        )
       }
     } catch {
       logger.warning("Failed to auto-connect to Appium session: \(error)")
@@ -403,102 +418,109 @@ public class WebRecorder: @unchecked Sendable {
     }
   }
 
+  // MARK: - Code Generation
+
+  public func generateLiveSwiftCode() -> String {
+    let currentEvents = getEvents()
+    return liveCodeGenerator.generateLiveCode(from: currentEvents)
+  }
+
   // MARK: - Browser Launching
   private func openWebInterface() async {
     let url = "http://localhost:\(port)"
     logger.info("Opening web interface in default browser: \(url)")
-    
+
     #if canImport(Darwin)
-    // macOS
-    let task = Process()
-    task.launchPath = "/usr/bin/open"
-    task.arguments = [url]
-    
-    do {
-      try task.run()
-      logger.info("✅ Web interface opened in default browser")
-    } catch {
-      logger.warning("Failed to open browser automatically: \(error)")
-      print("Please manually open: \(url)")
-    }
-    
-    #elseif canImport(Glibc)
-    // Linux/WSL
-    if isWSL {
-      // WSL-specific browser launching
-      await openWebInterfaceWSL(url: url)
-    } else {
-      // Native Linux
+      // macOS
       let task = Process()
-      task.executableURL = URL(fileURLWithPath: "/usr/bin/xdg-open")
+      task.launchPath = "/usr/bin/open"
       task.arguments = [url]
-      
+
       do {
         try task.run()
-        logger.info("✅ Web interface opened in default browser")
+        logger.info("Web interface opened in default browser")
       } catch {
         logger.warning("Failed to open browser automatically: \(error)")
         print("Please manually open: \(url)")
       }
-    }
+
+    #elseif canImport(Glibc)
+      // Linux/WSL
+      if isWSL {
+        // WSL-specific browser launching
+        await openWebInterfaceWSL(url: url)
+      } else {
+        // Native Linux
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/xdg-open")
+        task.arguments = [url]
+
+        do {
+          try task.run()
+          logger.info("Web interface opened in default browser")
+        } catch {
+          logger.warning("Failed to open browser automatically: \(error)")
+          print("Please manually open: \(url)")
+        }
+      }
     #endif
   }
-  
+
   #if canImport(Glibc)
-  private func openWebInterfaceWSL(url: String) async {
-    logger.info("WSL detected - attempting multiple browser launch methods")
-    
-    // Method 1: Try Windows browser via cmd.exe
-    do {
-      let task = Process()
-      task.executableURL = URL(fileURLWithPath: "/mnt/c/Windows/System32/cmd.exe")
-      task.arguments = ["/c", "start", url]
-      
-      try task.run()
-      task.waitUntilExit()
-      
-      if task.terminationStatus == 0 {
-        logger.info("✅ Web interface opened via Windows browser")
-        return
+    private func openWebInterfaceWSL(url: String) async {
+      logger.info("WSL detected - attempting multiple browser launch methods")
+
+      // Method 1: Try Windows browser via cmd.exe
+      do {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/mnt/c/Windows/System32/cmd.exe")
+        task.arguments = ["/c", "start", url]
+
+        try task.run()
+        task.waitUntilExit()
+
+        if task.terminationStatus == 0 {
+          logger.info("Web interface opened via Windows browser")
+          return
+        }
+      } catch {
+        logger.debug("Windows browser launch failed: \(error)")
       }
-    } catch {
-      logger.debug("Windows browser launch failed: \(error)")
+
+      // Method 2: Try wslview if available
+      do {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/wslview")
+        task.arguments = [url]
+
+        try task.run()
+        logger.info("Web interface opened via wslview")
+        return
+      } catch {
+        logger.debug("wslview launch failed: \(error)")
+      }
+
+      // Method 3: Try xdg-open (might work with X11 forwarding)
+      do {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/xdg-open")
+        task.arguments = [url]
+
+        try task.run()
+        logger.info("Web interface opened via xdg-open")
+        return
+      } catch {
+        logger.debug("xdg-open launch failed: \(error)")
+      }
+
+      // Fallback: Provide manual instructions
+      logger.warning("All automatic browser launch methods failed in WSL")
+      print("🌐 WSL Browser Launch Instructions:")
+      print("   Option 1: Open your Windows browser and navigate to: \(url)")
+      print("   Option 2: Install wslu package: sudo apt install wslu")
+      print("   Option 3: Set up X11 forwarding for Linux browsers")
+      print("   Option 4: Use Windows Terminal with --wsl flag")
     }
-    
-    // Method 2: Try wslview if available
-    do {
-      let task = Process()
-      task.executableURL = URL(fileURLWithPath: "/usr/bin/wslview")
-      task.arguments = [url]
-      
-      try task.run()
-      logger.info("✅ Web interface opened via wslview")
-      return
-    } catch {
-      logger.debug("wslview launch failed: \(error)")
-    }
-    
-    // Method 3: Try xdg-open (might work with X11 forwarding)
-    do {
-      let task = Process()
-      task.executableURL = URL(fileURLWithPath: "/usr/bin/xdg-open")
-      task.arguments = [url]
-      
-      try task.run()
-      logger.info("✅ Web interface opened via xdg-open")
-      return
-    } catch {
-      logger.debug("xdg-open launch failed: \(error)")
-    }
-    
-    // Fallback: Provide manual instructions
-    logger.warning("All automatic browser launch methods failed in WSL")
-    print("🌐 WSL Browser Launch Instructions:")
-    print("   Option 1: Open your Windows browser and navigate to: \(url)")
-    print("   Option 2: Install wslu package: sudo apt install wslu")
-    print("   Option 3: Set up X11 forwarding for Linux browsers")
-    print("   Option 4: Use Windows Terminal with --wsl flag")
-  }
   #endif
 
   // MARK: - JavaScript Injection
@@ -507,7 +529,7 @@ public class WebRecorder: @unchecked Sendable {
 
     let maxRetries = isWSL ? 5 : 3  // More retries for WSL
     let retryDelay: UInt64 = isWSL ? 2_000_000_000 : 1_000_000_000  // Longer delay for WSL
-    
+
     for attempt in 1...maxRetries {
       do {
         logger.debug("JavaScript injection attempt \(attempt)/\(maxRetries)")
@@ -533,9 +555,10 @@ public class WebRecorder: @unchecked Sendable {
 
       } catch {
         logger.warning("JavaScript injection attempt \(attempt) failed: \(error)")
-        
+
         if isWSL {
-          logger.info("WSL detected - this might be due to browser security policies or timing issues")
+          logger.info(
+            "WSL detected - this might be due to browser security policies or timing issues")
         }
 
         if attempt == maxRetries {
@@ -554,19 +577,19 @@ public class WebRecorder: @unchecked Sendable {
       }
     }
   }
-  
+
   private func enableDebugMode() async throws {
     guard let session = session else { return }
-    
+
     let debugScript = """
-      if (window.swiftAppiumRecorder) {
-        window.swiftAppiumRecorder.setDebugMode(true);
-        console.log('[SwiftAppium] Debug mode enabled for WSL troubleshooting');
-        return 'Debug mode enabled';
-      }
-      return 'Recorder not found';
-    """
-    
+        if (window.swiftAppiumRecorder) {
+          window.swiftAppiumRecorder.setDebugMode(true);
+          console.log('[SwiftAppium] Debug mode enabled for WSL troubleshooting');
+          return 'Debug mode enabled';
+        }
+        return 'Recorder not found';
+      """
+
     do {
       let result = try await session.executeScript(script: debugScript, args: [])
       logger.info("Debug mode enabled: \(result ?? "unknown")")
@@ -978,9 +1001,10 @@ public class WebRecorder: @unchecked Sendable {
 
     do {
       // First check if recorder is still installed (WSL browsers might reload/navigate)
-      let checkScript = "return window.swiftAppiumRecorder && window.swiftAppiumRecorder.isInstalled();"
+      let checkScript =
+        "return window.swiftAppiumRecorder && window.swiftAppiumRecorder.isInstalled();"
       let isInstalled = try await session.executeScript(script: checkScript, args: [])
-      
+
       if let installed = isInstalled as? Bool, !installed {
         logger.warning("JavaScript recorder not found - attempting re-injection")
         if isWSL {
@@ -1012,9 +1036,10 @@ public class WebRecorder: @unchecked Sendable {
         }
       } else if isWSL {
         // In WSL, occasionally check if events are being captured at all
-        let eventCountScript = "return window.swiftAppiumRecorder ? window.swiftAppiumRecorder.getEventCount() : -1;"
+        let eventCountScript =
+          "return window.swiftAppiumRecorder ? window.swiftAppiumRecorder.getEventCount() : -1;"
         let eventCount = try await session.executeScript(script: eventCountScript, args: [])
-        
+
         if let count = eventCount as? Int, count == 0 {
           // No events captured - this might indicate an issue
           logger.debug("WSL: No events captured yet. Recorder status: installed")
@@ -1022,13 +1047,13 @@ public class WebRecorder: @unchecked Sendable {
       }
     } catch {
       logger.error("Failed to poll for events: \(error)")
-      
+
       if isWSL {
         logger.warning("WSL: Event polling failed - this might be due to:")
         logger.warning("1. Browser security restrictions")
         logger.warning("2. Network timing issues")
         logger.warning("3. JavaScript execution context changes")
-        
+
         // Try to re-establish connection
         do {
           logger.info("WSL: Attempting to re-inject recorder script")
@@ -1071,103 +1096,314 @@ public class WebRecorder: @unchecked Sendable {
     }
   }
 
+  // MARK: - Variable Name Management
+
+  private func updateEventVariableName(at index: Int, variableName: String?) -> Bool {
+    return eventsQueue.sync {
+      guard index >= 0 && index < events.count else {
+        logger.warning("Invalid event index: \(index)")
+        return false
+      }
+
+      let sanitizedName = sanitizeVariableName(variableName)
+      events[index].variableName = sanitizedName
+      logger.debug("Updated event \(index) variable name to: \(sanitizedName ?? "nil")")
+      return true
+    }
+  }
+
+  private func sanitizeVariableName(_ name: String?) -> String? {
+    guard let name = name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
+      return nil
+    }
+
+    // Basic Swift variable name validation
+    let validPattern = "^[a-zA-Z_][a-zA-Z0-9_]*$"
+    let regex = try? NSRegularExpression(pattern: validPattern)
+    let range = NSRange(location: 0, length: name.utf16.count)
+
+    if regex?.firstMatch(in: name, options: [], range: range) != nil {
+      return makeVariableNameUnique(name)
+    } else {
+      // Convert invalid characters to underscores and ensure it starts with a letter
+      var sanitized = name.replacingOccurrences(
+        of: "[^a-zA-Z0-9_]", with: "_", options: .regularExpression)
+
+      // Ensure it starts with a letter or underscore
+      if let firstChar = sanitized.first, firstChar.isNumber {
+        sanitized = "_" + sanitized
+      }
+
+      return makeVariableNameUnique(sanitized)
+    }
+  }
+
+  private func makeVariableNameUnique(_ baseName: String) -> String {
+    let currentNames = Set(events.compactMap { $0.variableName })
+
+    if !currentNames.contains(baseName) {
+      return baseName
+    }
+
+    // Find a unique name by appending numbers
+    var counter = 1
+    var uniqueName = "\(baseName)\(counter)"
+
+    while currentNames.contains(uniqueName) {
+      counter += 1
+      uniqueName = "\(baseName)\(counter)"
+    }
+
+    return uniqueName
+  }
+
+  // MARK: - Live Code Generation
+
+  private class LiveCodeGenerator {
+    private let logger: Logger
+
+    init(logger: Logger) {
+      self.logger = logger
+    }
+
+    func generateLiveCode(from events: [RecordedEvent]) -> String {
+      logger.debug("Generating live Swift code from \(events.count) events")
+
+      let namedEvents = events.filter { $0.variableName != nil }
+      let sortedEvents = events.sorted { $0.timestamp < $1.timestamp }
+
+      var code = "// Generated by SwiftAppium Web Recorder\n"
+      code += "import SwiftAppium\n\n"
+      code += "func runTest(session: Session) async throws {\n"
+
+      // Generate variable declarations for named elements
+      if !namedEvents.isEmpty {
+        code += "    // Named element variables\n"
+
+        let uniqueNamedEvents = Dictionary(grouping: namedEvents) { $0.variableName! }
+
+        for (variableName, eventsWithName) in uniqueNamedEvents.sorted(by: { $0.key < $1.key }) {
+          // Use the first event with this variable name for the declaration
+          if let firstEvent = eventsWithName.first {
+            let sanitizedName = sanitizeVariableNameForCode(variableName)
+            let escapedXPath = escapeSwiftString(firstEvent.xpath)
+            code += "    let \(sanitizedName) = Element(.xpath, Selector(\"\(escapedXPath)\"))\n"
+          }
+        }
+        code += "\n"
+      }
+
+      // Generate test actions
+      if !sortedEvents.isEmpty {
+        code += "    // Test actions\n"
+        for event in sortedEvents {
+          code += generateEventCode(event)
+        }
+      } else {
+        code += "    // No events recorded yet\n"
+      }
+
+      code += "}\n"
+
+      logger.debug("Generated \(code.count) characters of Swift code")
+      return code
+    }
+
+    private func generateEventCode(_ event: RecordedEvent) -> String {
+      let indent = "    "
+
+      if let variableName = event.variableName {
+        // Use named variable
+        let sanitizedName = sanitizeVariableNameForCode(variableName)
+        return generateEventCodeWithVariable(event, variableName: sanitizedName, indent: indent)
+      } else {
+        // Use inline Element creation
+        return generateEventCodeInline(event, indent: indent)
+      }
+    }
+
+    private func generateEventCodeWithVariable(
+      _ event: RecordedEvent, variableName: String, indent: String
+    ) -> String {
+      switch event.type.lowercased() {
+      case let type where type.contains("click"):
+        return "\(indent)try await session.click(\(variableName))\n"
+      case let type where type.contains("input"):
+        if let value = event.value {
+          let escapedValue = escapeSwiftString(value)
+          return "\(indent)try await session.type(\(variableName), text: \"\(escapedValue)\")\n"
+        } else {
+          return "\(indent)try await session.click(\(variableName)) // Input event with no value\n"
+        }
+      case let type where type.contains("change"):
+        if let value = event.value {
+          let escapedValue = escapeSwiftString(value)
+          return "\(indent)try await session.type(\(variableName), text: \"\(escapedValue)\")\n"
+        } else {
+          return "\(indent)try await session.click(\(variableName)) // Change event\n"
+        }
+      default:
+        return "\(indent)try await session.click(\(variableName)) // \(event.type) event\n"
+      }
+    }
+
+    private func generateEventCodeInline(_ event: RecordedEvent, indent: String) -> String {
+      let escapedXPath = escapeSwiftString(event.xpath)
+      let elementCode = "Element(.xpath, Selector(\"\(escapedXPath)\"))"
+
+      switch event.type.lowercased() {
+      case let type where type.contains("click"):
+        return "\(indent)try await session.click(\(elementCode))\n"
+      case let type where type.contains("input"):
+        if let value = event.value {
+          let escapedValue = escapeSwiftString(value)
+          return "\(indent)try await session.type(\(elementCode), text: \"\(escapedValue)\")\n"
+        } else {
+          return "\(indent)try await session.click(\(elementCode)) // Input event with no value\n"
+        }
+      case let type where type.contains("change"):
+        if let value = event.value {
+          let escapedValue = escapeSwiftString(value)
+          return "\(indent)try await session.type(\(elementCode), text: \"\(escapedValue)\")\n"
+        } else {
+          return "\(indent)try await session.click(\(elementCode)) // Change event\n"
+        }
+      default:
+        return "\(indent)try await session.click(\(elementCode)) // \(event.type) event\n"
+      }
+    }
+
+    private func sanitizeVariableNameForCode(_ name: String) -> String {
+      // Ensure the variable name is valid for Swift code generation
+      let validPattern = "^[a-zA-Z_][a-zA-Z0-9_]*$"
+      let regex = try? NSRegularExpression(pattern: validPattern)
+      let range = NSRange(location: 0, length: name.utf16.count)
+
+      if regex?.firstMatch(in: name, options: [], range: range) != nil {
+        return name
+      } else {
+        // Fallback to a safe variable name
+        var sanitized = name.replacingOccurrences(
+          of: "[^a-zA-Z0-9_]", with: "_", options: .regularExpression)
+
+        // Ensure it starts with a letter or underscore
+        if let firstChar = sanitized.first, firstChar.isNumber {
+          sanitized = "_" + sanitized
+        }
+
+        return sanitized.isEmpty ? "element" : sanitized
+      }
+    }
+
+    private func escapeSwiftString(_ string: String) -> String {
+      return
+        string
+        .replacingOccurrences(of: "\\", with: "\\\\")
+        .replacingOccurrences(of: "\"", with: "\\\"")
+        .replacingOccurrences(of: "\n", with: "\\n")
+        .replacingOccurrences(of: "\r", with: "\\r")
+        .replacingOccurrences(of: "\t", with: "\\t")
+    }
+  }
+
   // MARK: - Event Playback
   private func replayEvents(session: AppiumSession, events: [RecordedEvent]) async {
     logger.info("Starting playback of \(events.count) events")
-    
+
     // Sort events by timestamp to maintain proper execution order
     let sortedEvents = events.sorted { $0.timestamp < $1.timestamp }
-    
+
     for (index, event) in sortedEvents.enumerated() {
       do {
-        logger.debug("Replaying event \(index + 1)/\(sortedEvents.count): \(event.type) on \(event.xpath)")
-        
+        logger.debug(
+          "Replaying event \(index + 1)/\(sortedEvents.count): \(event.type) on \(event.xpath)")
+
         switch event.type {
         case "click", "button_click", "link_click", "checkbox_click", "radio_click":
           try await replayClickEvent(session: session, event: event)
-          
+
         case "input", "textarea_input", "text_input", "password_input":
           try await replayInputEvent(session: session, event: event)
-          
+
         case "select_change":
           try await replaySelectEvent(session: session, event: event)
-          
+
         default:
           logger.warning("Unsupported event type for playback: \(event.type)")
         }
-        
+
         // Add delay between events to simulate realistic user interaction
-        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-        
+        try await Task.sleep(nanoseconds: 500_000_000)  // 0.5 seconds
+
       } catch {
         logger.error("Failed to replay event \(index + 1): \(error)")
         // Continue with next event rather than stopping playback
       }
     }
-    
+
     logger.info("Playback completed for \(sortedEvents.count) events")
   }
-  
+
   private func replayClickEvent(session: AppiumSession, event: RecordedEvent) async throws {
     let script = """
-      var element = document.evaluate(arguments[0], document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-      if (element) {
-        element.click();
-        return true;
-      } else {
-        throw new Error('Element not found: ' + arguments[0]);
-      }
-    """
-    
+        var element = document.evaluate(arguments[0], document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        if (element) {
+          element.click();
+          return true;
+        } else {
+          throw new Error('Element not found: ' + arguments[0]);
+        }
+      """
+
     _ = try await session.executeScript(script: script, args: [event.xpath])
   }
-  
+
   private func replayInputEvent(session: AppiumSession, event: RecordedEvent) async throws {
     let script = """
-      var element = document.evaluate(arguments[0], document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-      if (element) {
-        element.focus();
-        element.value = arguments[1] || '';
-        
-        // Trigger input events to simulate real user interaction
-        var inputEvent = new Event('input', { bubbles: true });
-        element.dispatchEvent(inputEvent);
-        
-        var changeEvent = new Event('change', { bubbles: true });
-        element.dispatchEvent(changeEvent);
-        
-        return true;
-      } else {
-        throw new Error('Element not found: ' + arguments[0]);
-      }
-    """
-    
+        var element = document.evaluate(arguments[0], document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        if (element) {
+          element.focus();
+          element.value = arguments[1] || '';
+          
+          // Trigger input events to simulate real user interaction
+          var inputEvent = new Event('input', { bubbles: true });
+          element.dispatchEvent(inputEvent);
+          
+          var changeEvent = new Event('change', { bubbles: true });
+          element.dispatchEvent(changeEvent);
+          
+          return true;
+        } else {
+          throw new Error('Element not found: ' + arguments[0]);
+        }
+      """
+
     _ = try await session.executeScript(script: script, args: [event.xpath, event.value ?? ""])
   }
-  
+
   private func replaySelectEvent(session: AppiumSession, event: RecordedEvent) async throws {
     let script = """
-      var element = document.evaluate(arguments[0], document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-      if (element && element.tagName.toLowerCase() === 'select') {
-        // Try to find option by text content first
-        var options = element.options;
-        for (var i = 0; i < options.length; i++) {
-          if (options[i].text === arguments[1] || options[i].value === arguments[1]) {
-            element.selectedIndex = i;
-            break;
+        var element = document.evaluate(arguments[0], document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        if (element && element.tagName.toLowerCase() === 'select') {
+          // Try to find option by text content first
+          var options = element.options;
+          for (var i = 0; i < options.length; i++) {
+            if (options[i].text === arguments[1] || options[i].value === arguments[1]) {
+              element.selectedIndex = i;
+              break;
+            }
           }
+          
+          // Trigger change event
+          var changeEvent = new Event('change', { bubbles: true });
+          element.dispatchEvent(changeEvent);
+          
+          return true;
+        } else {
+          throw new Error('Select element not found: ' + arguments[0]);
         }
-        
-        // Trigger change event
-        var changeEvent = new Event('change', { bubbles: true });
-        element.dispatchEvent(changeEvent);
-        
-        return true;
-      } else {
-        throw new Error('Select element not found: ' + arguments[0]);
-      }
-    """
-    
+      """
+
     _ = try await session.executeScript(script: script, args: [event.xpath, event.value ?? ""])
   }
 
@@ -1190,16 +1426,16 @@ public class WebRecorder: @unchecked Sendable {
 
     // Main web UI route
     app.get { [weak self] req async throws -> Response in
-      print("🔍 Main route called!")
+      print("Main route called!")
 
       guard let self = self else {
-        print("❌ WebRecorder instance not available")
+        print("WebRecorder instance not available")
         throw Abort(.internalServerError, reason: "WebRecorder instance not available")
       }
 
-      print("✅ Generating HTML...")
+      print("Generating HTML...")
       let html = self.generateWebUIHTML()
-      print("✅ HTML generated, length: \(html.count)")
+      print("HTML generated, length: \(html.count)")
 
       return Response(
         status: .ok,
@@ -1244,15 +1480,15 @@ public class WebRecorder: @unchecked Sendable {
         "eventCount": self.getEventCount(),
         "hasSession": self.session != nil,
         "timestamp": Date().timeIntervalSince1970,
-        "isWSL": self.isWSL
+        "isWSL": self.isWSL,
       ]
-      
+
       // Add WSL-specific diagnostics
       if self.isWSL {
         healthData["wslDiagnostics"] = [
           "environment": "WSL detected",
           "networkBinding": "0.0.0.0 (WSL mode)",
-          "browserLaunch": "Multi-method fallback enabled"
+          "browserLaunch": "Multi-method fallback enabled",
         ]
       }
 
@@ -1264,44 +1500,44 @@ public class WebRecorder: @unchecked Sendable {
         body: .init(data: jsonData)
       )
     }
-    
+
     // WSL-specific diagnostics endpoint
     if isWSL {
       app.get("wsl-diagnostics") { [weak self] req async throws -> Response in
         guard let self = self else {
           throw Abort(.internalServerError, reason: "WebRecorder instance not available")
         }
-        
+
         var diagnostics: [String: Any] = [
           "wslDetected": true,
-          "timestamp": Date().timeIntervalSince1970
+          "timestamp": Date().timeIntervalSince1970,
         ]
-        
+
         // Test JavaScript recorder status
         if let session = self.session {
           do {
             let testScript = """
-              return {
-                recorderInstalled: !!(window.swiftAppiumRecorder),
-                eventCount: window.swiftAppiumRecorder ? window.swiftAppiumRecorder.getEventCount() : -1,
-                eventsArray: window.swiftAppiumEvents ? window.swiftAppiumEvents.length : -1,
-                userAgent: navigator.userAgent,
-                location: window.location.href
-              };
-            """
-            
+                return {
+                  recorderInstalled: !!(window.swiftAppiumRecorder),
+                  eventCount: window.swiftAppiumRecorder ? window.swiftAppiumRecorder.getEventCount() : -1,
+                  eventsArray: window.swiftAppiumEvents ? window.swiftAppiumEvents.length : -1,
+                  userAgent: navigator.userAgent,
+                  location: window.location.href
+                };
+              """
+
             let result = try await session.executeScript(script: testScript, args: [])
             diagnostics["browserStatus"] = result
-            
+
           } catch {
             diagnostics["browserError"] = error.localizedDescription
           }
         } else {
           diagnostics["sessionStatus"] = "No active session"
         }
-        
+
         let jsonData = try JSONSerialization.data(withJSONObject: diagnostics)
-        
+
         return Response(
           status: .ok,
           headers: HTTPHeaders([("Content-Type", "application/json")]),
@@ -1494,11 +1730,11 @@ public class WebRecorder: @unchecked Sendable {
       guard let self = self else {
         throw Abort(.internalServerError, reason: "WebRecorder instance not available")
       }
-      
+
       guard let session = self.session else {
         let errorData: [String: Any] = [
           "success": false,
-          "error": "No active session. Please connect to an Appium session first."
+          "error": "No active session. Please connect to an Appium session first.",
         ]
         let jsonData = try JSONSerialization.data(withJSONObject: errorData)
         return Response(
@@ -1507,12 +1743,12 @@ public class WebRecorder: @unchecked Sendable {
           body: .init(data: jsonData)
         )
       }
-      
+
       let events = self.getAllEvents()
       guard !events.isEmpty else {
         let errorData: [String: Any] = [
           "success": false,
-          "error": "No events to replay. Record some interactions first."
+          "error": "No events to replay. Record some interactions first.",
         ]
         let jsonData = try JSONSerialization.data(withJSONObject: errorData)
         return Response(
@@ -1521,18 +1757,18 @@ public class WebRecorder: @unchecked Sendable {
           body: .init(data: jsonData)
         )
       }
-      
+
       // Start playback in background
       Task { [weak self] in
         await self?.replayEvents(session: session, events: events)
       }
-      
+
       let responseData: [String: Any] = [
         "success": true,
         "message": "Playback started for \(events.count) events",
-        "eventCount": events.count
+        "eventCount": events.count,
       ]
-      
+
       let jsonData = try JSONSerialization.data(withJSONObject: responseData)
       return Response(
         status: .ok,
@@ -1541,8 +1777,59 @@ public class WebRecorder: @unchecked Sendable {
       )
     }
 
+    // Variable naming API endpoints
+    app.post("update-variable") { [weak self] req async throws -> Response in
+      guard let self = self else {
+        throw Abort(.internalServerError, reason: "WebRecorder instance not available")
+      }
+
+      struct UpdateVariableRequest: Codable {
+        let eventIndex: Int
+        let variableName: String?
+      }
+
+      let updateRequest = try req.content.decode(UpdateVariableRequest.self)
+
+      let success = self.updateEventVariableName(
+        at: updateRequest.eventIndex, variableName: updateRequest.variableName)
+
+      let responseData: [String: Any] = [
+        "success": success,
+        "message": success
+          ? "Variable name updated successfully" : "Failed to update variable name",
+        "eventIndex": updateRequest.eventIndex,
+        "variableName": updateRequest.variableName ?? NSNull(),
+      ]
+
+      let jsonData = try JSONSerialization.data(withJSONObject: responseData)
+
+      return Response(
+        status: success ? .ok : .badRequest,
+        headers: HTTPHeaders([("Content-Type", "application/json")]),
+        body: .init(data: jsonData)
+      )
+    }
+
+    // Live Swift code endpoint
+    app.get("code.swift") { [weak self] req async throws -> Response in
+      guard let self = self else {
+        throw Abort(.internalServerError, reason: "WebRecorder instance not available")
+      }
+
+      let swiftCode = self.generateLiveSwiftCode()
+
+      return Response(
+        status: .ok,
+        headers: HTTPHeaders([
+          ("Content-Type", "text/plain"),
+          ("Cache-Control", "no-cache"),
+        ]),
+        body: .init(string: swiftCode)
+      )
+    }
+
     logger.info("Vapor routes configured successfully")
-    print("✅ Vapor web server routes configured")
+    print("Vapor web server routes configured")
   }
 
   private func generateWebUIHTML() -> String {
@@ -1727,7 +2014,7 @@ public class WebRecorder: @unchecked Sendable {
               }
               
               .events-panel {
-                  flex: 2;
+                  flex: 1;
                   display: flex;
                   flex-direction: column;
                   background: white;
@@ -1765,6 +2052,7 @@ public class WebRecorder: @unchecked Sendable {
                   flex: 1;
                   overflow-y: auto;
                   padding: 0;
+                  min-height: 200px;
               }
               
               .events-table {
@@ -1832,12 +2120,112 @@ public class WebRecorder: @unchecked Sendable {
                   white-space: nowrap;
               }
               
+              .variable-cell {
+                  padding: 4px;
+              }
+              
+              .variable-input {
+                  width: 100%;
+                  padding: 4px 6px;
+                  border: 1px solid #ddd;
+                  border-radius: 3px;
+                  font-size: 11px;
+                  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                  background: #fff;
+                  transition: border-color 0.2s ease;
+              }
+              
+              .variable-input:focus {
+                  outline: none;
+                  border-color: #667eea;
+                  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+              }
+              
+              .variable-input::placeholder {
+                  color: #999;
+                  font-style: italic;
+              }
+              
               .no-events {
                   text-align: center;
                   padding: 40px;
                   color: #6c757d;
               }
               
+              /* Code Preview Panel */
+              .code-preview-panel {
+                  background: #f8f9fa;
+                  border-top: 1px solid #dee2e6;
+                  margin-top: 16px;
+                  height: 300px;
+                  display: flex;
+                  flex-direction: column;
+                  border-radius: 4px;
+                  overflow: hidden;
+              }
+              
+              .code-preview-header {
+                  background: #e9ecef;
+                  padding: 8px 16px;
+                  border-bottom: 1px solid #dee2e6;
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  flex-shrink: 0;
+              }
+              
+              .code-preview-header h3 {
+                  margin: 0;
+                  font-size: 14px;
+                  font-weight: 500;
+                  color: #495057;
+              }
+              
+              .btn-small {
+                  padding: 4px 8px;
+                  font-size: 11px;
+                  min-width: auto;
+              }
+              
+              .code-preview-container {
+                  flex: 1;
+                  overflow: auto;
+                  padding: 0;
+              }
+              
+              #code-preview {
+                  margin: 0;
+                  padding: 16px;
+                  background: #ffffff;
+                  border: none;
+                  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                  font-size: 12px;
+                  line-height: 1.4;
+                  color: #333;
+                  height: 100%;
+                  overflow: auto;
+                  white-space: pre-wrap;
+                  word-wrap: break-word;
+                  word-break: break-all;
+                  overflow-wrap: break-word;
+              }
+              
+              .code-preview-container::-webkit-scrollbar {
+                  width: 8px;
+              }
+              
+              .code-preview-container::-webkit-scrollbar-track {
+                  background: #f1f1f1;
+              }
+              
+              .code-preview-container::-webkit-scrollbar-thumb {
+                  background: #c1c1c1;
+                  border-radius: 4px;
+              }
+              
+              .code-preview-container::-webkit-scrollbar-thumb:hover {
+                  background: #a8a8a8;
+              }
 
               
               @media (max-width: 768px) {
@@ -1869,7 +2257,7 @@ public class WebRecorder: @unchecked Sendable {
       <body>
           <div class="main-container">
               <div class="header">
-                  <h1>🎬 SwiftAppium Web Recorder</h1>
+                  <h1>SwiftAppium Web Recorder</h1>
                   <div class="header-status">
                       <div class="status-item">
                           <div class="status-dot \(sessionStatus == "Connected" ? "" : "disconnected")" id="session-dot"></div>
@@ -1888,40 +2276,53 @@ public class WebRecorder: @unchecked Sendable {
               <div class="content-area">
                   <div class="controls-panel">
                       <div class="controls-header">
-                          <h2>🎛️ Controls</h2>
+                          <h2>Controls</h2>
                       </div>
                       
                       <div class="controls-content">
-
+                          
+                          <div class="control-group">
+                              <h3>Session</h3>
+                              <button class="btn" onclick="scanForSessions()">Scan for Sessions</button>
+                              <div id="session-list" style="margin-top: 10px; font-size: 12px;"></div>
+                          </div>
                           
                           <div class="control-group">
                               <h3>Events</h3>
-                              <button class="btn primary" onclick="playbackEvents()">▶️ Play Events</button>
-                              <button class="btn warning" onclick="clearEvents()">🗑️ Clear Events</button>
-                              <button class="btn" onclick="exportSwiftCode()">💾 Export Swift Code</button>
+                              <button class="btn primary" onclick="playbackEvents()">Play Events</button>
+                              <button class="btn warning" onclick="clearEvents()">Clear Events</button>
+                              <button class="btn" onclick="exportSwiftCode()">Export Swift Code</button>
                           </div>
                           
                           \(isWSL ? """
                           <div class="control-group">
-                              <h3>🐧 WSL Diagnostics</h3>
-                              <button class="btn" onclick="runWSLDiagnostics()">🔍 Run Diagnostics</button>
-                              <button class="btn" onclick="testRecording()">🧪 Test Recording</button>
+                              <h3>WSL Diagnostics</h3>
+                              <button class="btn" onclick="runWSLDiagnostics()">Run Diagnostics</button>
+                              <button class="btn" onclick="testRecording()">Test Recording</button>
                               <div id="wsl-diagnostics" style="margin-top: 10px; font-size: 12px; color: #666;"></div>
                           </div>
                           """ : "")
                           
-
-                          
+                          <!-- Live Code Preview Panel -->
+                          <div class="code-preview-panel">
+                              <div class="code-preview-header">
+                                  <h3>Live Swift Code Preview</h3>
+                                  <button class="btn btn-small" onclick="copyCodeToClipboard()" title="Copy to clipboard">Copy</button>
+                              </div>
+                              <div class="code-preview-container">
+                                  <pre id="code-preview"><code class="swift">// Generated Swift code will appear here as you record events...</code></pre>
+                              </div>
+                          </div>
 
                       </div>
                   </div>
                   
                   <div class="events-panel">
                       <div class="events-header">
-                          <h2>📋 Recorded Events</h2>
+                          <h2>Recorded Events</h2>
                           <div class="events-controls">
                               <input type="text" class="events-filter" id="events-filter" placeholder="Filter events..." onkeyup="filterEvents()">
-                              <button class="btn" onclick="exportSwiftCode()">💾 Export</button>
+                              <button class="btn" onclick="exportSwiftCode()">Export</button>
                           </div>
                       </div>
                       
@@ -1930,14 +2331,15 @@ public class WebRecorder: @unchecked Sendable {
                               <thead>
                                   <tr>
                                       <th style="width: 80px;">Type</th>
-                                      <th style="width: 200px;">XPath</th>
-                                      <th style="width: 150px;">Value</th>
+                                      <th style="width: 180px;">XPath</th>
+                                      <th style="width: 120px;">Value</th>
+                                      <th style="width: 140px;">Variable Name</th>
                                       <th style="width: 100px;">Time</th>
                                   </tr>
                               </thead>
                               <tbody id="events-body">
                                   <tr>
-                                      <td colspan="4" class="no-events">
+                                      <td colspan="5" class="no-events">
                                           No events recorded yet. Start recording and interact with the browser to capture events.
                                       </td>
                                   </tr>
@@ -1994,13 +2396,26 @@ public class WebRecorder: @unchecked Sendable {
                   const tbody = document.getElementById("events-body");
                   
                   if (filteredEvents.length === 0) {
-                      tbody.innerHTML = "<tr><td colspan=\\"4\\" class=\\"no-events\\">No events match the current filter.</td></tr>";
+                      tbody.innerHTML = "<tr><td colspan=\\"5\\" class=\\"no-events\\">No events match the current filter.</td></tr>";
                       return;
                   }
                   
+                  // Preserve current input values and focused element
+                  const currentInputValues = {};
+                  const focusedElement = document.activeElement;
+                  let focusedIndex = -1;
+                  
+                  const existingInputs = tbody.querySelectorAll('.variable-input');
+                  existingInputs.forEach((input, idx) => {
+                      currentInputValues[idx] = input.value;
+                      if (input === focusedElement) {
+                          focusedIndex = idx;
+                      }
+                  });
+                  
                   tbody.innerHTML = "";
                   
-                  filteredEvents.forEach(event => {
+                  filteredEvents.forEach((event, index) => {
                       const row = tbody.insertRow();
                       
                       // Type cell with colored badge
@@ -2023,6 +2438,35 @@ public class WebRecorder: @unchecked Sendable {
                           valueCell.title = event.value; // Full value on hover
                       }
                       
+                      // Variable name cell with input field
+                      const variableCell = row.insertCell();
+                      variableCell.className = "variable-cell";
+                      const variableInput = document.createElement("input");
+                      variableInput.type = "text";
+                      variableInput.className = "variable-input";
+                      variableInput.placeholder = "variableName";
+                      
+                      // Use preserved value if available, otherwise use server value
+                      const preservedValue = currentInputValues[index];
+                      variableInput.value = preservedValue !== undefined ? preservedValue : (event.variableName || "");
+                      
+                      variableInput.addEventListener("blur", () => updateVariableName(index, variableInput.value, variableInput));
+                      variableInput.addEventListener("keypress", (e) => {
+                          if (e.key === "Enter") {
+                              variableInput.blur();
+                          }
+                      });
+                      variableCell.appendChild(variableInput);
+                      
+                      // Restore focus if this was the focused element
+                      if (index === focusedIndex) {
+                          setTimeout(() => {
+                              variableInput.focus();
+                              // Restore cursor position to end
+                              variableInput.setSelectionRange(variableInput.value.length, variableInput.value.length);
+                          }, 0);
+                      }
+                      
                       // Timestamp cell
                       const timestampCell = row.insertCell();
                       timestampCell.className = "timestamp-cell";
@@ -2038,9 +2482,295 @@ public class WebRecorder: @unchecked Sendable {
                   });
               }
               
+              // Update variable name for an event
+              async function updateVariableName(eventIndex, variableName, inputElement) {
+                  try {
+                      const response = await fetch("/update-variable", {
+                          method: "POST",
+                          headers: {
+                              "Content-Type": "application/json"
+                          },
+                          body: JSON.stringify({
+                              eventIndex: eventIndex,
+                              variableName: variableName.trim() || null
+                          })
+                      });
+                      
+                      if (!response.ok) {
+                          throw new Error("Failed to update variable name");
+                      }
+                      
+                      const result = await response.json();
+                      if (result.success) {
+                          // Update the local event data
+                          if (allEvents[eventIndex]) {
+                              allEvents[eventIndex].variableName = result.variableName;
+                          }
+                          
+                          // Update the input field with the server's response (handles sanitization/uniqueness)
+                          if (inputElement && result.variableName !== variableName.trim()) {
+                              inputElement.value = result.variableName || "";
+                          }
+                          
+                          // Update code preview immediately
+                          updateCodePreview();
+                          console.log("Variable name updated successfully");
+                      } else {
+                          console.error("Failed to update variable name:", result.message);
+                      }
+                  } catch (error) {
+                      console.error("Error updating variable name:", error);
+                  }
+              }
+              
               // Filter events as user types
               function filterEvents() {
                   applyEventFilter();
+              }
+              
+              // Update live code preview
+              async function updateCodePreview() {
+                  try {
+                      const response = await fetch("/code.swift");
+                      if (!response.ok) throw new Error("Failed to fetch code");
+                      
+                      const swiftCode = await response.text();
+                      const codePreview = document.getElementById("code-preview");
+                      codePreview.textContent = swiftCode;
+                      
+                  } catch (error) {
+                      console.error("Failed to update code preview:", error);
+                      const codePreview = document.getElementById("code-preview");
+                      codePreview.textContent = "// Error loading code preview: " + error.message;
+                  }
+              }
+              
+              // Copy code to clipboard
+              async function copyCodeToClipboard() {
+                  try {
+                      const codePreview = document.getElementById("code-preview");
+                      const code = codePreview.textContent;
+                      
+                      if (navigator.clipboard && navigator.clipboard.writeText) {
+                          await navigator.clipboard.writeText(code);
+                          showNotification("Code copied to clipboard!");
+                      } else {
+                          // Fallback for older browsers
+                          const textArea = document.createElement("textarea");
+                          textArea.value = code;
+                          document.body.appendChild(textArea);
+                          textArea.select();
+                          document.execCommand("copy");
+                          document.body.removeChild(textArea);
+                          showNotification("Code copied to clipboard!");
+                      }
+                  } catch (error) {
+                      console.error("Failed to copy code:", error);
+                      showNotification("Failed to copy code to clipboard", "error");
+                  }
+              }
+              
+              // Show notification
+              function showNotification(message, type = "success") {
+                  console.log("Showing notification:", message, type); // Debug log
+                  
+                  // Remove any existing notifications first
+                  const existingNotifications = document.querySelectorAll('.swiftappium-notification');
+                  existingNotifications.forEach(n => n.remove());
+                  
+                  // Create notification element
+                  const notification = document.createElement("div");
+                  notification.className = `swiftappium-notification notification-\\${type}`;
+                  notification.textContent = message;
+                  
+                  // Use simple top positioning that's guaranteed to be visible
+                  notification.style.cssText = `
+                      position: fixed;
+                      top: 10px;
+                      left: 50%;
+                      transform: translateX(-50%);
+                      background: \\${type === "success" ? "#28a745" : "#dc3545"};
+                      color: white;
+                      padding: 12px 20px;
+                      border-radius: 6px;
+                      font-size: 14px;
+                      font-weight: 500;
+                      z-index: 99999;
+                      opacity: 0;
+                      transition: all 0.3s ease;
+                      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+                      max-width: 90vw;
+                      word-wrap: break-word;
+                      text-align: center;
+                      border: 2px solid rgba(255, 255, 255, 0.2);
+                  `;
+                  
+                  document.body.appendChild(notification);
+                  console.log("Notification element added to DOM"); // Debug log
+                  
+                  // Force immediate visibility for testing
+                  requestAnimationFrame(() => {
+                      notification.style.opacity = "1";
+                      notification.style.transform = "translateX(-50%) translateY(0)";
+                  });
+                  
+                  // Remove after 4 seconds
+                  setTimeout(() => {
+                      notification.style.opacity = "0";
+                      setTimeout(() => {
+                          if (notification.parentNode) {
+                              notification.parentNode.removeChild(notification);
+                          }
+                      }, 300);
+                  }, 4000);
+              }
+              
+              // Scan for available Appium sessions
+              async function scanForSessions() {
+                  const sessionList = document.getElementById("session-list");
+                  sessionList.innerHTML = "Scanning for sessions...";
+                  
+                  try {
+                      const response = await fetch("/sessions/discover");
+                      if (!response.ok) throw new Error("Failed to discover sessions");
+                      
+                      const result = await response.json();
+                      
+                      if (result.success && result.sessions.length > 0) {
+                          sessionList.innerHTML = "";
+                          result.sessions.forEach(session => {
+                              const sessionDiv = document.createElement("div");
+                              sessionDiv.style.cssText = "margin: 4px 0; padding: 4px 8px; background: #f8f9fa; border-radius: 3px; display: flex; justify-content: space-between; align-items: center;";
+                              
+                              const sessionId = document.createElement("span");
+                              sessionId.textContent = session.sessionId;
+                              sessionId.style.cssText = "font-family: monospace; font-size: 11px; color: #495057;";
+                        
+                              const connectBtn = document.createElement("button");
+                              connectBtn.textContent = "Connect";
+                              connectBtn.className = "btn btn-small";
+                              connectBtn.style.cssText = "padding: 2px 6px; font-size: 10px; margin-left: 8px;";
+                              connectBtn.onclick = () => connectToSpecificSession(session.sessionId);
+                              
+                              sessionDiv.appendChild(sessionId);
+                              sessionDiv.appendChild(connectBtn);
+                              sessionList.appendChild(sessionDiv);
+                          });
+                      } else {
+                          sessionList.innerHTML = "No active sessions found. Start an Appium session first.";
+                      }
+                  } catch (error) {
+                      console.error("Failed to scan for sessions:", error);
+                      sessionList.innerHTML = "Error scanning for sessions: " + error.mge;
+                  }
+              }
+              
+              // Connect to a specific session
+              async function connectToSpecificSession(sessionId) {
+                  try {
+                      const response = await fetch("/session/connect", {
+                          method: "POST",
+                          headers: {
+                              "Content-Type": "application/json"
+                          },
+                          body: JSON.stringify({
+                              sessionId: sessionId
+                          })
+                      });
+                      
+                      const result = await response.json();
+                      
+                      if (result.success) {
+                          showNotification("Connected to session: " + sessionId);
+                          updateSessionStatus();
+                      } else {
+                          showNotification("Failed to connect: " + result.error, "error");
+                      }
+                  } catch (error) {
+                      console.error("Failed to connect to session:", error);
+                      showNotification("Connection error: " + error.message, "error");
+                  }
+              }
+              
+              // Connect to session from input field
+              async function connectToSession() {
+                  const sessionIdInput = document.getElementById("session-id-input");
+                  const sessionId = sessionIdInput.value.trim();
+                  
+                  if (!sessionId) {
+                      showNotification("Please enter a session ID", "error");
+                      return;
+                  }
+                  
+                  await connectToSpecificSession(sessionId);
+                  sessionIdInput.value = ""; // Clear input after attempt
+              }
+              
+              // Scan for available Appium sessions
+              async function scanForSessions() {
+                  const sessionList = document.getElementById("session-list");
+                  sessionList.innerHTML = "Scanning for sessions...";
+                  
+                  try {
+                      const response = await fetch("/sessions/discover");
+                      if (!response.ok) throw new Error("Failed to discover sessions");
+                      
+                      const result = await response.json();
+                      
+                      if (result.success && result.sessions.length > 0) {
+                          sessionList.innerHTML = "";
+                          result.sessions.forEach(session => {
+                              const sessionDiv = document.createElement("div");
+                              sessionDiv.style.cssText = "margin: 4px 0; padding: 4px 8px; background: #f8f9fa; border-radius: 3px; display: flex; justify-content: space-between; align-items: center;";
+                              
+                              const sessionId = document.createElement("span");
+                              sessionId.textContent = session.sessionId;
+                              sessionId.style.cssText = "font-family: monospace; font-size: 11px; color: #495057;";
+                              
+                              const connectBtn = document.createElement("button");
+                              connectBtn.textContent = "Connect";
+                              connectBtn.className = "btn btn-small";
+                              connectBtn.style.cssText = "padding: 2px 6px; font-size: 10px; margin-left: 8px;";
+                              connectBtn.onclick = () => connectToSpecificSession(session.sessionId);
+                              
+                              sessionDiv.appendChild(sessionId);
+                              sessionDiv.appendChild(connectBtn);
+                              sessionList.appendChild(sessionDiv);
+                          });
+                      } else {
+                          sessionList.innerHTML = "No active sessions found. Start an Appium session first.";
+                      }
+                  } catch (error) {
+                      console.error("Failed to scan for sessions:", error);
+                      sessionList.innerHTML = "Error scanning for sessions: " + error.message;
+                  }
+              }
+              
+              // Connect to a specific session
+              async function connectToSpecificSession(sessionId) {
+                  try {
+                      const response = await fetch("/session/connect", {
+                          method: "POST",
+                          headers: {
+                              "Content-Type": "application/json"
+                          },
+                          body: JSON.stringify({
+                              sessionId: sessionId
+                          })
+                      });
+                      
+                      const result = await response.json();
+                      
+                      if (result.success) {
+                          showNotification("Connected to session: " + sessionId);
+                          updateSessionStatus();
+                      } else {
+                          showNotification("Failed to connect: " + result.error, "error");
+                      }
+                  } catch (error) {
+                      console.error("Failed to connect to session:", error);
+                      showNotification("Connection error: " + error.message, "error");
+                  }
               }
               
               // Update session status
@@ -2135,7 +2865,7 @@ public class WebRecorder: @unchecked Sendable {
               // WSL-specific diagnostic functions
               async function runWSLDiagnostics() {
                   const diagnosticsDiv = document.getElementById("wsl-diagnostics");
-                  diagnosticsDiv.innerHTML = "🔍 Running WSL diagnostics...";
+                  diagnosticsDiv.innerHTML = "Running WSL diagnostics...";
                   
                   try {
                       const response = await fetch("/wsl-diagnostics");
@@ -2145,14 +2875,14 @@ public class WebRecorder: @unchecked Sendable {
                       
                       if (data.browserStatus) {
                           const status = data.browserStatus;
-                          html += `📊 Recorder Status: ${status.recorderInstalled ? '✅ Installed' : '❌ Not Found'}<br>`;
-                          html += `📈 Event Count: ${status.eventCount}<br>`;
-                          html += `🌐 Location: ${status.location}<br>`;
-                          html += `🖥️ User Agent: ${status.userAgent.substring(0, 50)}...<br>`;
+                          html += `Recorder Status: ${status.recorderInstalled ? 'Installed' : 'Not Found'}<br>`;
+                          html += `Event Count: ${status.eventCount}<br>`;
+                          html += `Location: ${status.location}<br>`;
+                          html += `User Agent: ${status.userAgent.substring(0, 50)}...<br>`;
                       }
                       
                       if (data.browserError) {
-                          html += `❌ Browser Error: ${data.browserError}<br>`;
+                          html += `Browser Error: ${data.browserError}<br>`;
                       }
                       
                       if (data.sessionStatus) {
@@ -2162,13 +2892,13 @@ public class WebRecorder: @unchecked Sendable {
                       diagnosticsDiv.innerHTML = html;
                       
                   } catch (error) {
-                      diagnosticsDiv.innerHTML = `❌ Diagnostics failed: ${error.message}`;
+                      diagnosticsDiv.innerHTML = `Diagnostics failed: ${error.message}`;
                   }
               }
               
               async function testRecording() {
                   const diagnosticsDiv = document.getElementById("wsl-diagnostics");
-                  diagnosticsDiv.innerHTML = "🧪 Testing recording functionality...";
+                  diagnosticsDiv.innerHTML = "Testing recording functionality...";
                   
                   try {
                       const initialCount = allEvents.length;
@@ -2178,7 +2908,7 @@ public class WebRecorder: @unchecked Sendable {
                           const newCount = allEvents.length;
                           
                           if (newCount > initialCount) {
-                              diagnosticsDiv.innerHTML = "✅ Recording is working! New events detected.";
+                              diagnosticsDiv.innerHTML = "Recording is working! New events detected.";
                           } else {
                               diagnosticsDiv.innerHTML = `
                                   ⚠️ No new events detected. Possible issues:<br>
@@ -2191,10 +2921,10 @@ public class WebRecorder: @unchecked Sendable {
                           }
                       }, 2000);
                       
-                      diagnosticsDiv.innerHTML = "🧪 Test in progress... Please wait 2 seconds...";
+                      diagnosticsDiv.innerHTML = "Test in progress... Please wait 2 seconds...";
                       
                   } catch (error) {
-                      diagnosticsDiv.innerHTML = `❌ Test failed: ${error.message}`;
+                      diagnosticsDiv.innerHTML = `Test failed: ${error.message}`;
                   }
               }
               """ : "")
@@ -2206,6 +2936,7 @@ public class WebRecorder: @unchecked Sendable {
                   
                   // Set up periodic updates
                   setInterval(updateEvents, 1000);           // Update events every second
+                  setInterval(updateCodePreview, 1000);      // Update code preview every second
                   setInterval(updateSessionStatus, 5000);    // Update session every 5 seconds
               }
               
