@@ -137,7 +137,11 @@ struct SwiftAppiumCLI: ParsableCommand {
   }
 
   private func isPortAvailable(port: Int) -> Bool {
-      let socketFD = socket(Int32(AF_INET), Int32(SOCK_STREAM), Int32(0))
+    #if canImport(Darwin)
+    let socketFD = socket(Int32(AF_INET), Int32(SOCK_STREAM), Int32(0))
+    #elseif canImport(Glibc)
+    let socketFD = socket(AF_INET, SOCK_STREAM, 0)
+    #endif
     guard socketFD != -1 else { return false }
 
     defer {
