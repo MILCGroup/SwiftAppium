@@ -140,7 +140,7 @@ struct SwiftAppiumCLI: ParsableCommand {
     #if canImport(Darwin)
     let socketFD = socket(Int32(AF_INET), Int32(SOCK_STREAM), Int32(0))
     #elseif canImport(Glibc)
-    let socketFD = socket(AF_INET, SOCK_STREAM, 0)
+      let socketFD = socket(Int32(AF_INET), Int32(SOCK_STREAM.rawValue), Int32(0))
     #endif
     guard socketFD != -1 else { return false }
 
