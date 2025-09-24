@@ -1,5 +1,9 @@
 import Foundation
+#if os(macOS)
+import OSLog
+#else
 import Logging
+#endif
 import AsyncHTTPClient
 @testable import SwiftAppium
 
