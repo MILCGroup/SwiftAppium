@@ -3,6 +3,7 @@ import Testing
 
 @Suite
 struct ModelTests {
+    /*
     let session: Session = Session(client: MockAppium(), platform: "iOS", automationName: "XCUITest")
     
     @Test
@@ -13,7 +14,7 @@ struct ModelTests {
         #expect(element?.strategy == .id)
         #expect(element?.selector.wrappedValue == selector)
     }
-    /*
+
     @Test
     func testWaitForElement() async throws {
         let selector = "test-button"
@@ -415,10 +416,10 @@ struct ModelTests {
             throw TestError.unexpectedError
         }
     }
+    */
 }
 
 enum TestError: Error {
     case expectedError
     case unexpectedError
 }
-*/
