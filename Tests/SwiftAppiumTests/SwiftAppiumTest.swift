@@ -13,7 +13,6 @@ import Foundation
     .server("http://10.172.1.157:4723"),
     .exampleDevice(.chrome)
 )
-
 struct WebTest {
     @Test("[Feed] Sessions") func addTestSessionInFeed() async throws {
         try await Environment.test.navigate("https://www.milcgroup.com")
