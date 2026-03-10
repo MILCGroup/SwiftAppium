@@ -16,9 +16,9 @@ let package = Package(
         .executable(name: "swiftappium", targets: ["SwiftAppiumCLI"])
     ],
     dependencies: [
-        .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.0.0"),
-        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.0.0"),
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0")
+        .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.32.0"),
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.7.0"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.121.3")
     ],
     targets: [
         .target(
