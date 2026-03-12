@@ -9,6 +9,9 @@ import Testing
 
 extension Tag {
     public enum device {}
+
+    /// Test has specific infrastructure needs unlikely to be present outside of central CI
+    @Tag public static var infra: Tag
 }
 
 extension Tag.device {
